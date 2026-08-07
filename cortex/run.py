@@ -131,7 +131,7 @@ def _as_steer_3d(t, dim, device, dtype=None):
     return t
 
 
-def run_rest_server(port: int = 20000):
+def run_rest_server(port: int = 20001):
     """Run the REST server mode."""
     # RAM/CPU defaults
     os.environ["USE_DUAL_MODEL"] = "false"
@@ -558,7 +558,7 @@ def run_interactive_broadcast():
         while runtime.running:
             try:
                 # Consulta o estado de convergência no Servidor REST
-                with urllib.request.urlopen("http://localhost:20000/matrix/common_state", timeout=1) as response:
+                with urllib.request.urlopen("http://localhost:20001/matrix/common_state", timeout=1) as response:
                     data = json.loads(response.read().decode('utf-8', errors='replace'))
                     if data.get("status") == "CONVERGENCE_LOCATED":
                         sim = data.get("highest_similarity", 0.0)
@@ -1330,10 +1330,10 @@ def run_interactive_broadcast():
     # Start the REST API server in a background thread sharing the same memory
     def run_api():
         import uvicorn
-        uvicorn.run(swa.rest_server.app, host="0.0.0.0", port=20000, log_level="warning")
+        uvicorn.run(swa.rest_server.app, host="0.0.0.0", port=20001, log_level="warning")
         
     threading.Thread(target=run_api, daemon=True, name="SWA-REST-Server-Shared").start()
-    print("🔌 [SWA MEMORY SHARING] Servidor REST ativado na porta 20000 compartilhando os modelos já em memória!")
+    print("🔌 [SWA MEMORY SHARING] Servidor REST ativado na porta 20001 compartilhando os modelos já em memória!")
 
     try:
         # =========================================================================
@@ -2901,7 +2901,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SWA Runtime")
     parser.add_argument("--interactive", action="store_true", help="Run in interactive broadcast mode")
     parser.add_argument("--broadcast", action="store_true", help="Enable broadcast event system")
-    parser.add_argument("port", nargs="?", type=int, default=20000, help="Port for REST server (default: 20000)")
+    parser.add_argument("port", nargs="?", type=int, default=20001, help="Port for REST server (default: 20001)")
 
     args = parser.parse_args()
 
