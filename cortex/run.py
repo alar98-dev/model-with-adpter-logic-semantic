@@ -139,7 +139,7 @@ def run_rest_server(port: int = 20001):
     # AVOID RAM DUPLICATION: SWA Kernel uses 1B, while Subcortex uses 270M
     # =========================================================================
     # SEPARAÇÃO DE PAPIÉIS — Gemma-1B para linguagem, 270M para embeddings internos
-    os.environ["MODEL_DIR"] = os.path.join(_project_root, "models/gemma-3-270m-it")
+    os.environ["MODEL_DIR"] = os.path.join(_project_root, "models/gemma-3-1b-it")
     os.environ["VECTORIZER_MODEL_DIR"] = os.path.join(_project_root, "models/gemma-3-270m")
 
     print(f"🚀 Starting SWA REST on http://0.0.0.0:{port} (GEMMA_DEVICE={os.environ['GEMMA_DEVICE']})")
@@ -163,7 +163,7 @@ def run_interactive_broadcast():
     #   MODEL_DIR           → Gemma-3-1B  → linguagem natural (resposta ao usuário)
     #   VECTORIZER_MODEL_DIR → Gemma-3-270M → embeddings internos (SWA, RAG, anchors)
     # =========================================================================
-    os.environ["MODEL_DIR"] = os.path.join(_project_root, "models/gemma-3-270m-it")
+    os.environ["MODEL_DIR"] = os.path.join(_project_root, "models/gemma-3-1b-it")
     os.environ["VECTORIZER_MODEL_DIR"] = os.path.join(_project_root, "models/gemma-3-270m")
     # =========================================================================
 
@@ -345,14 +345,14 @@ def run_interactive_broadcast():
     except Exception as e:
         print(f"❌ Failed to load GemmaGenerator: {e}")
         
-    # Load Gemma Voice (Cordas Vocais / NLP Puro)
-    try:
-        voice_model_dir = "models/gemma-3-270m-it"
-        # Pode usar o mesmo tokenizer
-        gemma_voice = GemmaGenerator(voice_model_dir, device=device, tokenizer=tokenizer)
-        print(f"✅ Gemma Voice (270M-it) carregado com sucesso.")
-    except Exception as e:
-        print(f"⚠️ [WARNING] Falha ao carregar Gemma Voice (270M): {e}. Córtex usará modo Monolítico.")
+    # Load Gemma Voice (Cordas Vocais / NLP Puro) — REUTILIZA o Orquestrador 1B
+    # Regra de ouro: 1B para linguagem (gerador + voz), 270M (Subconscious) como goma.
+    # Remove a carga duplicada do antigo 270m-it e mantém as dimensões (1152D) consistentes.
+    if gemma_gen is not None:
+        gemma_voice = gemma_gen
+        print("✅ Gemma Voice reutiliza o Orquestrador 1B (sem carga extra).")
+    else:
+        print("⚠️ [WARNING] Orquestrador indisponível — Córtex usará modo Monolítico.")
         gemma_voice = None
 
     # Load Gemma Subconscious (Matriz Ideológica)

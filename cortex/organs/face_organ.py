@@ -6,8 +6,15 @@ import base64
 import logging
 import numpy as np
 import redis
-import face_recognition
 import cv2
+
+try:
+    import face_recognition
+    HAS_FACE_RECOGNITION = True
+except ImportError:
+    HAS_FACE_RECOGNITION = False
+    import logging
+    logging.getLogger("face_organ").warning("⚠️  [face_organ] face_recognition não instalado. Reconhecimento facial desativado.")
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, '/services/model-with-adpter-logic-semantic')
@@ -207,6 +214,8 @@ class FaceOrgan:
                 _log.error(f"Erro no loop principal: {e}")
 
     def _process_frame(self, data):
+        if not HAS_FACE_RECOGNITION:
+            return
         frame_id = data.get('frame_id', 0)
         img_data = base64.b64decode(data['image'])
         np_arr = np.frombuffer(img_data, np.uint8)
@@ -369,3 +378,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     organ = FaceOrgan()
     organ.start()
+
+
+def init_organ():
+    return FaceOrgan()
