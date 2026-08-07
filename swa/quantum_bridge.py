@@ -317,6 +317,7 @@ class QuantumPhaseBridge:
             )
             self.conn.commit()
             self._cached_L = None
+            self._cached_w = None
 
             log_path = "/services/model-with-adpter-logic-semantic/logs/structural_origins.jsonl"
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
@@ -343,7 +344,7 @@ class QuantumPhaseBridge:
             print(f"⚠️ [STRUCTURAL SYNC] Falha ao alinhar {file_path}: {e}")
             return None
 
-    def load_semantic_mass_cache(self, d_model=None, device="cpu"):
+    def load_semantic_mass_cache(self, d_model=None, device="cpu", dtype=torch.float32):
         """Loads all semantic anchor embeddings and weights into a PyTorch cache in RAM/XPU."""
         if d_model is not None:
             self.gold_dimension = d_model
@@ -395,7 +396,7 @@ class QuantumPhaseBridge:
             self._cached_L = torch.zeros((1, self.gold_dimension), dtype=dtype, device=device)
             self._cached_w = torch.ones((1,), dtype=dtype, device=device)
 
-    def compute_blake_semantic_mass(self, x, sigma=1.0, device="cpu"):
+    def compute_blake_semantic_mass(self, x, sigma=1.0, device="cpu", dtype=torch.float32):
         """Computes the continuous Semantic Mass Tensor M(x) of Blake for a given activation vector x."""
         # Ensure x has correct shape and type
         x_tensor = x.to(device=device, dtype=dtype).view(-1)
@@ -437,7 +438,14 @@ class QuantumPhaseBridge:
                     import gc; gc.collect()
         
         # O Puxo Gravitacional Vetorial (Centro de Massa em 2560D)
-        weighted_pull = (self._cached_w * rbf).unsqueeze(1) * self._cached_L
+        # Guarda contra cache invalidado de forma concorrente (ingestão de âncoras em thread de fundo)
+        if self._cached_L is None or self._cached_w is None:
+            self.load_semantic_mass_cache(d_model=x_tensor.size(0), device=device, dtype=dtype)
+        if self._cached_L is None or self._cached_w is None:
+            return torch.zeros((x_tensor.size(0),), dtype=dtype, device=device)
+        cached_L = self._cached_L
+        cached_w = self._cached_w
+        weighted_pull = (cached_w * rbf).unsqueeze(1) * cached_L
         pull_vector = torch.sum(weighted_pull, dim=0)
         return pull_vector
 

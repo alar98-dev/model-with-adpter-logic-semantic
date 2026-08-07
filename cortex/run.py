@@ -1668,13 +1668,32 @@ def run_interactive_broadcast():
                         manual_do_organismo = f.read()
                 except Exception:
                     manual_do_organismo = "Manual indisponível."
-                    
+
+                # --- Tensor Latente do Núcleo (aeonc layer26) — relação tensorial atemporal ---
+                # Leitura não-bloqueante do estado latente publicado por aeonc (--tensors).
+                # Sem acoplamento temporal: se ausente/estagnado, a percepção apenas degrada.
+                tensor_latente_str = "sem estado tensorial do núcleo (aeonc inativo)"
+                try:
+                    tmeta = None
+                    if os.path.exists("/dev/shm/aeon/core.tensor.json"):
+                        with open("/dev/shm/aeon/core.tensor.json", "r", encoding="utf-8") as tf:
+                            tmeta = json.load(tf)
+                    if tmeta:
+                        t_age = max(0.0, time.time() - tmeta.get("ts", 0.0))
+                        t_fresh = "vivo" if t_age < 120.0 else f"estagnado ({int(t_age)}s)"
+                        tensor_latente_str = (f"{tmeta.get('source', 'layer?')} dim={tmeta.get('dim', '?')} "
+                                              f"norm={tmeta.get('norm', 0):.1f} tokens={tmeta.get('reply_tokens', '?')} "
+                                              f"estado={t_fresh}")
+                except Exception:
+                    tensor_latente_str = "leitura tensorial indisponível"
+
                 current_prompt = (
                     f"[ORGANISMO: AEON CORE V5]\n"
                     f"=========================================\n"
                     f"[TÔNUS LÍMBICO]: {identity_group} | ESTADO: {motor_state}\n"
                     f"[ENTROPIA (L12)]: {curr_e_val:.2f} (Adrenalina/Dopamina)\n"
                     f"[STATUS DE ENERGIA]: CPU={temp_avg:.1f}°C, {utilization_avg:.1f}% | RAM={used_ram_gb:.1f}GB/{total_ram_gb:.1f}GB\n"
+                    f"[TENSOR LATENTE DO NÚCLEO (AEONC)]: {tensor_latente_str}\n"
                     f"[VISÃO PERIFÉRICA]: mmap -> active_focus({mmap_desc})\n"
                     f"[ÚLTIMO REFLEXO MOTOR]: {last_reflex}\n"
                     f"[DIRETRIZ PULSANTE]: {identity_directive}\n"
