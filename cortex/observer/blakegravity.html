@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWA-Aeon — BlakeGravity</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; color: #c8d6e5; font-family: 'Segoe UI', monospace; height: 100vh; overflow: hidden; }
+
+        #three-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+
+        .hud {
+            position: absolute; z-index: 10; pointer-events: none;
+        }
+        .hud > * { pointer-events: auto; }
+
+        .top-bar {
+            top: 0; left: 0; right: 0;
+            background: linear-gradient(180deg, rgba(10,14,23,0.95) 0%, transparent 100%);
+            padding: 12px 20px 30px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .top-bar h1 { font-size: 14px; color: #ffd700; font-weight: 600; letter-spacing: 1px; }
+        .top-bar .nav { display: flex; gap: 8px; }
+        .top-bar .nav a { color: #5a7a9a; text-decoration: none; font-size: 11px; padding: 4px 8px; border-radius: 3px; }
+        .top-bar .nav a:hover, .top-bar .nav a.active { color: #ffd700; background: rgba(255,215,0,0.1); }
+
+        .breadcrumb {
+            bottom: 20px; left: 20px;
+            display: flex; align-items: center; gap: 6px; font-size: 12px;
+        }
+        .breadcrumb .crumb { color: #5a7a9a; cursor: pointer; padding: 4px 8px; border-radius: 3px; transition: all 0.2s; }
+        .breadcrumb .crumb:hover { color: #ffd700; background: rgba(255,215,0,0.1); }
+        .breadcrumb .crumb.current { color: #ffd700; }
+        .breadcrumb .sep { color: #1e3a5f; }
+
+        .stats-bar {
+            top: 50px; right: 20px;
+            width: 220px;
+        }
+        .stat-card {
+            background: rgba(13,17,23,0.85); border: 1px solid #1e3a5f; border-radius: 6px;
+            padding: 10px 12px; margin-bottom: 6px; backdrop-filter: blur(8px);
+        }
+        .stat-card h4 { font-size: 9px; color: #5a7a9a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+        .stat-row { display: flex; justify-content: space-between; font-size: 11px; padding: 2px 0; }
+        .stat-label { color: #5a7a9a; }
+        .stat-value { color: #ffd700; }
+
+        .legend {
+            bottom: 20px; right: 20px;
+            width: 260px;
+        }
+        .legend-card {
+            background: rgba(13,17,23,0.85); border: 1px solid #1e3a5f; border-radius: 6px;
+            padding: 10px 12px; backdrop-filter: blur(8px); max-height: 300px; overflow-y: auto;
+        }
+        .legend-card h4 { font-size: 9px; color: #5a7a9a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+        .legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; padding: 2px 0; }
+        .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .legend-ext { color: #5a7a9a; width: 36px; }
+        .legend-name { color: #c8d6e5; }
+        .legend-element { color: #5a7a9a; margin-left: auto; font-size: 9px; }
+
+        .file-tooltip {
+            position: absolute; z-index: 20; display: none;
+            background: rgba(13,17,23,0.95); border: 1px solid #ffd700; border-radius: 6px;
+            padding: 10px 14px; pointer-events: none; min-width: 200px;
+        }
+        .file-tooltip .tt-name { font-size: 13px; color: #ffd700; font-weight: 500; }
+        .file-tooltip .tt-row { font-size: 10px; color: #5a7a9a; margin-top: 3px; }
+        .file-tooltip .tt-val { color: #c8d6e5; }
+
+        .loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 5; text-align: center; color: #ffd700;
+        }
+        .loading .spinner {
+            width: 40px; height: 40px; border: 2px solid #1e3a5f; border-top-color: #ffd700;
+            border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .controls {
+            top: 50px; left: 20px;
+        }
+        .controls button {
+            display: block; width: 100%; padding: 6px 10px; margin-bottom: 4px;
+            background: rgba(13,17,23,0.85); border: 1px solid #1e3a5f; border-radius: 4px;
+            color: #5a7a9a; font-size: 11px; cursor: pointer; transition: all 0.2s;
+            font-family: inherit; text-align: left; backdrop-filter: blur(8px);
+        }
+        .controls button:hover { border-color: #ffd700; color: #ffd700; }
+
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 2px; }
+    </style>
+</head>
+<body>
+    <canvas id="three-canvas"></canvas>
+
+    <div class="hud top-bar">
+        <h1>⊛ BLAKEGRAVITY — NAVEGAÇÃO ASTROFÍSICA</h1>
+        <div class="nav">
+            <a href="/">Matriz</a>
+            <a href="/shell">Shell 3D</a>
+            <a href="/identities">Identidades</a>
+            <a href="/embeddings">Embeddings</a>
+            <a href="/calibrate">Calibrar</a>
+            <a href="/cardiac">Cardíaco</a>
+            <a href="/blakegravity" class="active">BlakeGravity</a>
+        </div>
+    </div>
+
+    <div class="hud controls" id="controls">
+        <button onclick="navigateTo('/home/alifer/swa-aeon')">⊙ SWA-Aeon</button>
+        <button onclick="navigateTo('/services/model-with-adpter-logic-semantic')">⊙ Model Services</button>
+        <button onclick="navigateTo('/home/alifer')">⊙ Home</button>
+        <button onclick="toggleOrbits()">◎ Orbitas On/Off</button>
+        <button onclick="toggleLabels()">⊞ Labels On/Off</button>
+    </div>
+
+    <div class="hud stats-bar" id="stats-bar">
+        <div class="stat-card">
+            <h4>Sistema Atual</h4>
+            <div class="stat-row">
+                <span class="stat-label">Estrela</span>
+                <span class="stat-value" id="star-name">—</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Massa Total</span>
+                <span class="stat-value" id="star-mass">—</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Arquivos</span>
+                <span class="stat-value" id="file-count">—</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Pastas</span>
+                <span class="stat-value" id="dir-count">—</span>
+            </div>
+        </div>
+        <div class="stat-card" id="selected-card" style="display:none">
+            <h4>Selecionado</h4>
+            <div class="stat-row">
+                <span class="stat-label">Nome</span>
+                <span class="stat-value" id="sel-name">—</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Elemento</span>
+                <span class="stat-value" id="sel-element">—</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Massa</span>
+                <span class="stat-value" id="sel-mass">—</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Entropia</span>
+                <span class="stat-value" id="sel-entropy">—</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="hud legend">
+        <div class="legend-card" id="dynamic-legend">
+            <h4>Tabela de Elementos</h4>
+            <!-- Injetado via JavaScript (treeData.element_legend) -->
+        </div>
+    </div>
+
+    <div class="hud breadcrumb" id="breadcrumb"></div>
+
+    <div class="file-tooltip" id="tooltip"></div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div>Escaneando árvore de arquivos...</div>
+    </div>
+
+    <div id="pause-overlay" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); color:#00ffff; font-family:'Courier New', monospace; font-size:42px; font-weight:bold; letter-spacing:4px; text-shadow:0 0 20px #00ffff; z-index:200; pointer-events:none; opacity:0.8; border:1px solid rgba(0,255,255,0.3); padding:20px; background:rgba(0,0,0,0.5); backdrop-filter:blur(5px);">
+        [ PAUSA TEMPORAL ]
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, clock;
+        let treeData = null;
+        let currentPath = '/home/alifer/swa-aeon';
+        let pathHistory = [];
+        let orbitalObjects = [];
+        let orbitLines = [];
+        let labels = [];
+        let showOrbits = true;
+        let showLabels = true;
+        let autoRotate = true;
+        let rotationAngle = 0;
+        let selectedNode = null;
+        let hoveredObj = null;
+        let swarmPoints, swarmPositions, swarmVelocities;
+        let raycaster, mouse;
+        let isTransitioning = false;
+        let isPaused = false;
+        let globalTime = 0;
+        let baseRadius = 15;
+        let baseHeight = 8;
+        let currentLookAt = new THREE.Vector3(0, 0, 0);
+        let targetLookAt = new THREE.Vector3(0, 0, 0);
+
+        const GRAVITY_API = 'http://localhost:20009/api/tree';
+
+        function init() {
+            const canvas = document.getElementById('three-canvas');
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x000000, 0.015);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(0, 8, 15);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setClearColor(0x000000, 1);
+
+            clock = new THREE.Clock();
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            scene.add(new THREE.AmbientLight(0x334455, 0.4));
+
+            const starLight = new THREE.PointLight(0xffd700, 2, 50);
+            starLight.position.set(0, 0, 0);
+            scene.add(starLight);
+
+            const ambientStars = new THREE.BufferGeometry();
+            const starPositions = new Float32Array(3000 * 3);
+            for (let i = 0; i < 3000 * 3; i++) {
+                starPositions[i] = (Math.random() - 0.5) * 400;
+            }
+            ambientStars.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.15, transparent: true, opacity: 0.6 });
+            scene.add(new THREE.Points(ambientStars, starMat));
+
+            // Enxame de Lumiotaxia (Fototaxia)
+            const swarmCount = 400;
+            const swarmGeo = new THREE.BufferGeometry();
+            swarmPositions = new Float32Array(swarmCount * 3);
+            swarmVelocities = [];
+            for (let i = 0; i < swarmCount; i++) {
+                swarmPositions[i * 3] = (Math.random() - 0.5) * 10;
+                swarmPositions[i * 3 + 1] = (Math.random() - 0.5) * 10;
+                swarmPositions[i * 3 + 2] = (Math.random() - 0.5) * 10;
+                swarmVelocities.push(new THREE.Vector3(0, 0, 0));
+            }
+            swarmGeo.setAttribute('position', new THREE.BufferAttribute(swarmPositions, 3));
+            const swarmMat = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.1, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
+            swarmPoints = new THREE.Points(swarmGeo, swarmMat);
+            scene.add(swarmPoints);
+
+            canvas.addEventListener('click', onCanvasClick);
+            canvas.addEventListener('mousemove', onCanvasMouseMove);
+            window.addEventListener('resize', onResize);
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && pathHistory.length > 0) goBack();
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    isPaused = !isPaused;
+                    document.getElementById('pause-overlay').style.display = isPaused ? 'block' : 'none';
+                }
+            });
+            canvas.addEventListener('wheel', onMouseWheel, { passive: false });
+
+            animate();
+            loadTree(currentPath);
+        }
+
+        function onMouseWheel(e) {
+            e.preventDefault();
+            const zoomAmount = e.deltaY * 0.015;
+
+            if (hoveredObj) {
+                const target = hoveredObj.mesh.position.clone();
+                // O zoom aproxima o foco para o objeto sob o mouse (mira)
+                targetLookAt.lerp(target, zoomAmount < 0 ? 0.3 : -0.3);
+            } else {
+                // Se der zoom no vazio, volta gradualmente a olhar para o centro
+                targetLookAt.lerp(new THREE.Vector3(0, 0, 0), 0.1);
+            }
+
+            baseRadius = Math.max(3, baseRadius + zoomAmount);
+            baseHeight = Math.max(1, baseHeight + zoomAmount * 0.5);
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onCanvasClick(e) {
+            if (isTransitioning) return;
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            const meshes = orbitalObjects.filter(o => o.mesh).map(o => o.mesh);
+            const intersects = raycaster.intersectObjects(meshes);
+
+            if (intersects.length > 0) {
+                const hit = intersects[0].object;
+                const obj = orbitalObjects.find(o => o.mesh === hit);
+                if (obj && obj.node.type === 'directory') {
+                    diveInto(obj.node);
+                } else if (obj && obj.node.target_path) {
+                    // Viagem no Buraco de Minhoca!
+                    diveInto({ path: obj.node.target_path });
+                } else if (obj) {
+                    selectNode(obj.node);
+                }
+            }
+        }
+
+        function onCanvasMouseMove(e) {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            const meshes = orbitalObjects.filter(o => o.mesh).map(o => o.mesh);
+            const intersects = raycaster.intersectObjects(meshes);
+
+            const tooltip = document.getElementById('tooltip');
+            hoveredObj = null;
+            if (intersects.length > 0) {
+                const hit = intersects[0].object;
+                const obj = orbitalObjects.find(o => o.mesh === hit);
+                if (obj) {
+                    hoveredObj = obj;
+                    showTooltip(e.clientX, e.clientY, obj.node);
+                    document.body.style.cursor = obj.node.type === 'directory' ? 'pointer' : 'default';
+                }
+            } else {
+                tooltip.style.display = 'none';
+                document.body.style.cursor = 'default';
+            }
+        }
+
+        function showTooltip(x, y, node) {
+            const tt = document.getElementById('tooltip');
+            let html = `<div class="tt-name">${node.name}</div>`;
+            html += `<div class="tt-row">Tipo: <span class="tt-val">${node.type === 'directory' ? 'Diretório' : (node.extension || 'Arquivo')}</span></div>`;
+            html += `<div class="tt-row">Elemento: <span class="tt-val" style="color:${node.color || '#fff'}">${node.element_name || node.element || 'Estrela'}</span></div>`;
+            html += `<div class="tt-row">Massa: <span class="tt-val">${node.mass?.toFixed(3) || '—'}</span></div>`;
+            if (node.entropy !== undefined) {
+                html += `<div class="tt-row">Entropia: <span class="tt-val">${node.entropy?.toFixed(3) || '—'}</span></div>`;
+                html += `<div class="tt-row">Tamanho: <span class="tt-val">${formatSize(node.size)}</span></div>`;
+            }
+            
+            if (node.target_path) {
+                html += `<div class="tt-row" style="color:#00ffff;margin-top:8px;font-weight:bold;">▸ Buraco de Minhoca (Atalho Quântico)</div>`;
+                html += `<div class="tt-row" style="color:#aaa;font-size:10px">${node.target_path}</div>`;
+            } else if (node.type === 'directory') {
+                html += `<div class="tt-row">Arquivos: <span class="tt-val">${node.file_count || 0}</span></div>`;
+                html += `<div class="tt-row" style="color:#ffd700;margin-top:4px">▸ Clique para mergulhar</div>`;
+            }
+            
+            tt.innerHTML = html;
+            tt.style.display = 'block';
+            tt.style.left = (x + 15) + 'px';
+            tt.style.top = (y + 15) + 'px';
+        }
+
+        function formatSize(bytes) {
+            if (!bytes) return '—';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        async function loadTree(path) {
+            document.getElementById('loading').style.display = 'block';
+            try {
+                const res = await fetch(`${GRAVITY_API}?path=${encodeURIComponent(path)}&depth=2`);
+                treeData = await res.json();
+                if (treeData.error) {
+                    console.error(treeData.error);
+                    document.getElementById('loading').innerHTML = '<div style="color:#ff4757">Diretório não encontrado</div>';
+                    return;
+                }
+                currentPath = path;
+                buildSystem();
+                updateBreadcrumb();
+                updateStats();
+
+                if (treeData.element_legend) {
+                    const legendContainer = document.getElementById('dynamic-legend');
+                    if (legendContainer) {
+                        let legendHtml = '<h4>Tabela de Elementos</h4>';
+                        Object.entries(treeData.element_legend).forEach(([ext, elem]) => {
+                            legendHtml += `
+                            <div class="legend-item">
+                                <div class="legend-dot" style="background:${elem.color}"></div>
+                                <span class="legend-ext">${ext === 'node_modules' ? 'npm' : ext}</span>
+                                <span class="legend-name">${elem.name}</span>
+                                <span class="legend-element" style="text-transform: capitalize;">${elem.shape} | ${elem.behavior}</span>
+                            </div>`;
+                        });
+                        legendContainer.innerHTML = legendHtml;
+                    }
+                }
+            } catch (e) {
+                console.error('Erro ao carregar árvore:', e);
+            }
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function buildSystem() {
+            orbitalObjects.forEach(o => { if (o.mesh) scene.remove(o.mesh); if (o.orbit) scene.remove(o.orbit); if (o.glow) scene.remove(o.glow); });
+            orbitalObjects = [];
+
+            if (!treeData || !treeData.nodes) return;
+
+            const starGeo = new THREE.SphereGeometry(0.5, 32, 32);
+            const starMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+            const starMesh = new THREE.Mesh(starGeo, starMat);
+            scene.add(starMesh);
+
+            const starGlowGeo = new THREE.SphereGeometry(0.7, 32, 32);
+            const starGlowMat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.15 });
+            const starGlow = new THREE.Mesh(starGlowGeo, starGlowMat);
+            scene.add(starGlow);
+
+            orbitalObjects.push({
+                mesh: starMesh, glow: starGlow, node: {
+                    type: 'directory', name: treeData.star.name, mass: treeData.star.mass,
+                    path: treeData.root_path, file_count: treeData.star.file_count,
+                    element: 'Estrela', color: '#ffd700',
+                }
+            });
+
+            // Distribuir no espaço usando Espiral de Fermat (Phyllotaxis)
+            const c = 1.5; // Fator de dispersão
+            
+            treeData.nodes.forEach((node, idx) => {
+                const mass = node.mass || 0.01;
+                
+                // O raio aumenta com a raiz quadrada do índice (área uniforme)
+                const radius = 2.0 + c * Math.sqrt(idx);
+                
+                // O ângulo usa a Proporção Áurea (137.5 graus = 2.4 radianos)
+                const angle = idx * 2.39996;
+                
+                // Velocidade orbital baseada na Terceira Lei de Kepler aproximada (mais longe = mais devagar)
+                const speed = (node.element?.orbit_speed || 0.5) / Math.sqrt(radius / 2.0);
+
+                let mesh;
+                const color = new THREE.Color(node.color || '#ffffff');
+
+                if (node.type === 'directory') {
+                    const size = 0.15 + mass * 0.03;
+                    const geo = new THREE.IcosahedronGeometry(size, 1);
+                    const mat = new THREE.MeshPhongMaterial({
+                        color: color, emissive: color, emissiveIntensity: 0.4,
+                        transparent: true, opacity: 0.85,
+                    });
+                    mesh = new THREE.Mesh(geo, mat);
+                } else {
+                    const shape = node.element && node.element.shape ? node.element.shape : (node.shape || 'ponto');
+                    let geo;
+                    const size = 0.06 + mass * 0.015;
+
+                    switch (shape) {
+                        case 'esfera': geo = new THREE.SphereGeometry(size, 16, 16); break;
+                        case 'icosaedro': geo = new THREE.IcosahedronGeometry(size, 0); break;
+                        case 'elipse': geo = new THREE.SphereGeometry(size, 16, 16); geo.scale(1, 0.5, 2); break;
+                        case 'denso': geo = new THREE.TetrahedronGeometry(size * 0.8, 1); break;
+                        case 'nuvem': geo = new THREE.DodecahedronGeometry(size * 1.2, 1); break;
+                        case 'estrela': geo = new THREE.OctahedronGeometry(size, 0); break;
+                        case 'octaedro': geo = new THREE.OctahedronGeometry(size, 0); break;
+                        case 'dodecaedro': geo = new THREE.DodecahedronGeometry(size, 0); break;
+                        case 'ponto': geo = new THREE.SphereGeometry(size * 0.5, 4, 4); break;
+                        case 'anel': geo = new THREE.TorusGeometry(size, size * 0.3, 8, 16); break;
+                        case 'nebulosa': geo = new THREE.DodecahedronGeometry(size * 1.8, 2); break; // geometria complexa e ramificada
+                        default: geo = new THREE.SphereGeometry(size, 8, 8);
+                    }
+
+                    const emissiveColor = node.element && node.element.color ? node.element.color : (node.color || '#ffffff');
+                    const mat = new THREE.MeshPhongMaterial({
+                        color: emissiveColor, 
+                        emissive: emissiveColor,
+                        emissiveIntensity: (node.element ? node.element.glow : node.glow) || 0.5,
+                        transparent: true, 
+                        opacity: (shape === 'nuvem' || shape === 'nebulosa') ? 0.5 : 0.9,
+                        wireframe: shape === 'nuvem' || shape === 'denso' || shape === 'nebulosa'
+                    });
+                    mesh = new THREE.Mesh(geo, mat);
+                }
+
+                mesh.position.set(
+                    Math.cos(angle) * radius,
+                    (Math.random() - 0.5) * 1.5,
+                    Math.sin(angle) * radius
+                );
+
+                scene.add(mesh);
+
+                const orbitCurve = [];
+                for (let i = 0; i <= 128; i++) {
+                    const a = (i / 128) * Math.PI * 2;
+                    orbitCurve.push(new THREE.Vector3(Math.cos(a) * radius, 0, Math.sin(a) * radius));
+                }
+                const orbitGeo = new THREE.BufferGeometry().setFromPoints(orbitCurve);
+                const orbitMat = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.1 });
+                const orbitLine = new THREE.Line(orbitGeo, orbitMat);
+                scene.add(orbitLine);
+
+                let pulseLine = null;
+                if (node.name.endsWith('.service')) {
+                    const pulseMat = new THREE.LineBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8 });
+                    const pulseGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,0)]);
+                    pulseLine = new THREE.Line(pulseGeo, pulseMat);
+                    scene.add(pulseLine);
+                }
+
+                orbitalObjects.push({
+                    mesh, orbit: orbitLine, pulseLine, node,
+                    radius, angle, speed, verticalOffset: mesh.position.y,
+                });
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            if (!isPaused) {
+                globalTime += delta;
+            }
+            const time = globalTime;
+
+            orbitalObjects.forEach((obj, i) => {
+                if (i === 0) return;
+                const q_energy = obj.node.quantum ? obj.node.quantum.quantum_energy : 0.2;
+                const gravitational_perturbation = Math.sin(time * 0.2 + obj.radius) * Math.cos(time * 0.3 - obj.angle) * 1.5;
+                const dynamic_radius = obj.radius + gravitational_perturbation;
+
+                const a = obj.angle + time * obj.speed * 0.3;
+                const wobble = Math.sin(time * 0.5 + obj.angle) * (0.15 + (q_energy * 0.5));
+                obj.mesh.position.x = Math.cos(a) * dynamic_radius;
+                obj.mesh.position.z = Math.sin(a) * dynamic_radius;
+                obj.mesh.position.y = obj.verticalOffset + wobble;
+
+                if (obj.pulseLine) {
+                    const points = [];
+                    points.push(new THREE.Vector3(0, 0, 0));
+                    const segments = 5;
+                    for (let j = 1; j < segments; j++) {
+                        const t = j / segments;
+                        const px = obj.mesh.position.x * t + (Math.random() - 0.5) * 0.8;
+                        const py = obj.mesh.position.y * t + (Math.random() - 0.5) * 0.8;
+                        const pz = obj.mesh.position.z * t + (Math.random() - 0.5) * 0.8;
+                        points.push(new THREE.Vector3(px, py, pz));
+                    }
+                    points.push(obj.mesh.position.clone());
+                    obj.pulseLine.geometry.setFromPoints(points);
+                    obj.pulseLine.material.opacity = 0.3 + Math.random() * 0.7;
+                }
+
+                if (obj === hoveredObj || obj.node === selectedNode) {
+                    if (obj.mesh.material.emissiveIntensity !== undefined) {
+                        obj.mesh.material.emissiveIntensity = 1.5; // Brilho intenso no arquivo
+                    }
+                    if (obj.orbit) {
+                        obj.orbit.material.opacity = 0.8; // Destaca o caminho orbital
+                        obj.orbit.material.color.setHex(0xffffff);
+                    }
+                } else {
+                    if (obj.mesh.material.emissiveIntensity !== undefined) {
+                        const behavior = obj.node.element ? obj.node.element.behavior : obj.node.behavior;
+                        const pulse = behavior === 'pulsante'
+                            ? 0.3 + Math.sin(time * 4 + obj.angle) * 0.4
+                            : (behavior === 'efêmero' ? 0.1 + Math.random() * 0.5 : 0.2);
+                        obj.mesh.material.emissiveIntensity = pulse;
+                    }
+                    if (obj.orbit) {
+                        obj.orbit.material.opacity = 0.1; // Restaura a linha da órbita
+                        obj.orbit.material.color.setHex(new THREE.Color(obj.node.color || '#ffffff').getHex());
+                    }
+                }
+
+                let rotX = 0.002;
+                let rotY = 0.005;
+                let rotZ = 0.0;
+                
+                const q_state = obj.node.quantum ? obj.node.quantum.quantum_state : 'collapsed';
+                const behavior = obj.node.element ? obj.node.element.behavior : obj.node.behavior;
+
+                if (q_state === 'superposition') {
+                    rotX *= (2.0 + q_energy * 3);
+                    rotY *= (2.0 + q_energy * 3);
+                    rotZ += (0.02 + q_energy * 0.05);
+                    obj.mesh.position.y += Math.sin(time * 10 + obj.angle) * 0.03 * q_energy;
+                } else if (q_state === 'entangled') {
+                    rotX *= -2.0;
+                    rotY *= 3.0;
+                    obj.mesh.position.y += Math.cos(time * 2 + obj.angle) * 0.15;
+                }
+
+                if (behavior === 'efêmero') {
+                    rotY *= 5.0;
+                    obj.mesh.scale.setScalar(0.8 + Math.sin(time * 12 + obj.angle) * 0.3);
+                } else if (behavior === 'pulsante') {
+                    rotX *= 1.5;
+                    obj.mesh.scale.setScalar(1.0 + Math.sin(time * 5 + obj.angle) * 0.15);
+                } else if (behavior === 'superdenso') {
+                    rotY *= 0.5;
+                } else if (behavior === 'desconhecido') {
+                    rotX = Math.sin(time) * 0.02;
+                    rotY = Math.cos(time) * 0.02;
+                }
+
+                obj.mesh.rotation.x += rotX;
+                obj.mesh.rotation.y += rotY;
+                obj.mesh.rotation.z += rotZ;
+            });
+            // Lumiotaxia effect
+            if (swarmPoints) {
+                const positions = swarmPoints.geometry.attributes.position.array;
+                const lightTarget = (hoveredObj || selectedNode) 
+                    ? (hoveredObj ? hoveredObj.mesh.position.clone() : (orbitalObjects.find(o => o.node === selectedNode)?.mesh.position.clone() || new THREE.Vector3(0,0,0))) 
+                    : new THREE.Vector3(0, 0, 0);
+                
+                for (let i = 0; i < 400; i++) {
+                    const px = positions[i * 3];
+                    const py = positions[i * 3 + 1];
+                    const pz = positions[i * 3 + 2];
+                    const p = new THREE.Vector3(px, py, pz);
+                    
+                    const dir = new THREE.Vector3().subVectors(lightTarget, p);
+                    const dist = dir.length();
+                    
+                    if (hoveredObj || selectedNode) {
+                        // Fototaxia forte para o objeto aceso
+                        dir.normalize().multiplyScalar(0.08);
+                        if (dist < 1.0) {
+                            dir.add(new THREE.Vector3((Math.random()-0.5)*0.3, (Math.random()-0.5)*0.3, (Math.random()-0.5)*0.3));
+                        }
+                    } else {
+                        // Retorna calmamente à estrela central e orbita suavemente
+                        dir.normalize().multiplyScalar(0.015);
+                        dir.add(new THREE.Vector3(-p.z * 0.03, (Math.random()-0.5)*0.01, p.x * 0.03)); // turbulência orbital
+                    }
+                    
+                    swarmVelocities[i].add(dir).multiplyScalar(0.92); // atrito dinâmico
+                    
+                    positions[i * 3] += swarmVelocities[i].x;
+                    positions[i * 3 + 1] += swarmVelocities[i].y;
+                    positions[i * 3 + 2] += swarmVelocities[i].z;
+                }
+                swarmPoints.geometry.attributes.position.needsUpdate = true;
+            }
+
+            if (autoRotate && !isTransitioning) {
+                if (!isPaused) {
+                    rotationAngle += 0.002;
+                }
+                currentLookAt.lerp(targetLookAt, 0.05); // Suaviza a transição da mira
+
+                // A câmera orbita ao redor do ponto de mira (currentLookAt)
+                const camX = currentLookAt.x + Math.sin(rotationAngle) * baseRadius;
+                const camZ = currentLookAt.z + Math.cos(rotationAngle) * baseRadius;
+                const camY = currentLookAt.y + baseHeight + Math.sin(rotationAngle * 0.3) * (baseRadius * 0.1);
+                
+                camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.1);
+                camera.lookAt(currentLookAt);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        async function diveInto(node) {
+            if (isTransitioning) return;
+            isTransitioning = true;
+
+            pathHistory.push(currentPath);
+
+            const targetPos = node.path || (currentPath + '/' + node.name).replace('//', '/');
+            const fadeOverlay = document.createElement('div');
+            fadeOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:100;opacity:0;transition:opacity 0.5s;pointer-events:none';
+            document.body.appendChild(fadeOverlay);
+            await new Promise(r => { fadeOverlay.style.opacity = '1'; setTimeout(r, 500); });
+
+            await loadTree(targetPos);
+
+            fadeOverlay.style.opacity = '0';
+            setTimeout(() => { fadeOverlay.remove(); isTransitioning = false; }, 500);
+        }
+
+        function goBack() {
+            if (pathHistory.length === 0) return;
+            const prev = pathHistory.pop();
+            loadTree(prev);
+        }
+
+        function navigateTo(path) {
+            pathHistory.push(currentPath);
+            loadTree(path);
+        }
+
+        function selectNode(node) {
+            selectedNode = node;
+            document.getElementById('selected-card').style.display = 'block';
+            document.getElementById('sel-name').textContent = node.name;
+            document.getElementById('sel-element').textContent = node.element_name || node.element || '—';
+            document.getElementById('sel-element').style.color = node.color;
+            document.getElementById('sel-mass').textContent = node.mass?.toFixed(3) || '—';
+            document.getElementById('sel-entropy').textContent = node.entropy?.toFixed(3) || '—';
+        }
+
+        function updateBreadcrumb() {
+            const parts = currentPath.split('/').filter(Boolean);
+            const bc = document.getElementById('breadcrumb');
+            
+            // Adiciona o botão da Raiz (Root /) fixo no início para permitir navegação em todo o WSL
+            let html = `<span class="crumb" onclick="navigateTo('/')" style="font-weight:bold; color:#00ffff; margin-right:4px;">[ Raiz / ]</span>`;
+            
+            // Atalho direto para o coração do sistema (Aeon)
+            html += `<span class="crumb" onclick="navigateTo('/home/alifer/swa-aeon')" style="font-weight:bold; color:#ffd700; margin-right:4px; text-shadow:0 0 5px #ffd700;">[ Aeon 🪐 ]</span>`;
+            
+            if (parts.length > 0) html += `<span class="sep">›</span>`;
+            
+            let accumulated = '';
+            parts.forEach((part, i) => {
+                accumulated += '/' + part;
+                const p = accumulated;
+                html += `<span class="crumb ${i === parts.length - 1 ? 'current' : ''}" onclick="navigateTo('${p}')">${part}</span>`;
+                if (i < parts.length - 1) html += '<span class="sep">›</span>';
+            });
+            bc.innerHTML = html;
+        }
+
+        function updateStats() {
+            if (!treeData) return;
+            document.getElementById('star-name').textContent = treeData.star.name;
+            document.getElementById('star-mass').textContent = treeData.star.mass?.toFixed(2) + ' M☉';
+            document.getElementById('file-count').textContent = treeData.star.file_count;
+            document.getElementById('dir-count').textContent = treeData.star.dir_count;
+        }
+
+        function toggleOrbits() {
+            showOrbits = !showOrbits;
+            orbitalObjects.forEach(o => { if (o.orbit) o.orbit.visible = showOrbits; });
+        }
+
+        function toggleLabels() { showLabels = !showLabels; }
+
+        init();
+    </script>
+</body>
+</html>

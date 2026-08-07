@@ -1,0 +1,8 @@
+[Unit]
+Description=SWA Aeon Stack (manifold + córtex + sentidos)
+Documentation=file:///services/model-with-adpter-logic-semantic/deployments/README_BOOT.md
+Wants=swa-mcp.service swa-subcortex.service swa-manifold.service swa-auto.service swa-auditory.service swa-obelisk.service
+After=postgresql.service postgresql@17-main.service
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,24 @@
+[Unit]
+Description=SWA Quantum MCP Server (SSE)
+After=network-online.target postgresql.service postgresql@17-main.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=alifer
+Group=alifer
+WorkingDirectory=/services/model-with-adpter-logic-semantic
+
+Environment=PYTHONUNBUFFERED=1
+Environment=SWA_PROJECT_ROOT=/services/model-with-adpter-logic-semantic
+
+ExecStart=/services/model-with-adpter-logic-semantic/venv/bin/python -m uvicorn mcp_gateway.server:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=swa-mcp
+
+[Install]
+WantedBy=multi-user.target

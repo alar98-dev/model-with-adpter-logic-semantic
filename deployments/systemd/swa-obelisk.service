@@ -1,0 +1,19 @@
+[Unit]
+Description=SWA Obelisk Daemon (Mutational Watchdog)
+After=network-online.target swa-auto.service
+
+[Service]
+Type=simple
+User=alifer
+WorkingDirectory=/services/model-with-adpter-logic-semantic
+
+ExecStart=/services/model-with-adpter-logic-semantic/venv/bin/python /services/model-with-adpter-logic-semantic/cortex/obelisk_daemon.py
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=swa-obelisk
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWA-Aeon — Calibrador de Rostos</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0e17; color: #c8d6e5; font-family: 'Segoe UI', monospace; height: 100vh; display: flex; flex-direction: column; }
+        
+        .header {
+            background: linear-gradient(135deg, #0d1321 0%, #1a1a2e 100%);
+            border-bottom: 1px solid #1e3a5f;
+            padding: 12px 24px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .header h1 { font-size: 16px; color: #00d4ff; font-weight: 600; letter-spacing: 1px; }
+        .header .nav { display: flex; gap: 12px; }
+        .header .nav a { color: #5a7a9a; text-decoration: none; font-size: 12px; padding: 5px 10px; border-radius: 4px; transition: all 0.2s; }
+        .header .nav a:hover, .header .nav a.active { color: #00d4ff; background: rgba(0,212,255,0.1); }
+
+        .main { flex: 1; display: flex; overflow: hidden; }
+
+        .viewport { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: #080c14; }
+        #live-frame { max-width: 100%; max-height: 100%; object-fit: contain; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #click-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: crosshair; }
+
+        .no-signal {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #5a7a9a; font-size: 14px; gap: 12px;
+        }
+        .no-signal .icon { font-size: 48px; opacity: 0.3; }
+
+        .sidebar {
+            width: 320px; background: #0d1117; border-left: 1px solid #1e3a5f;
+            display: flex; flex-direction: column;
+        }
+
+        .sidebar-section { padding: 16px; border-bottom: 1px solid #161b22; }
+        .sidebar-section h3 { font-size: 11px; color: #5a7a9a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+
+        .status-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12px; }
+        .status-label { color: #5a7a9a; }
+        .status-value { color: #00d4ff; }
+        .status-value.offline { color: #ff4757; }
+        .status-value.online { color: #51cf66; }
+
+        .face-card {
+            background: #161b22; border: 1px solid #1e3a5f; border-radius: 6px;
+            padding: 12px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s;
+        }
+        .face-card:hover { border-color: #00d4ff; background: #1a2332; }
+        .face-card.selected { border-color: #00d4ff; background: #1a2332; box-shadow: 0 0 12px rgba(0,212,255,0.2); }
+        .face-card .face-header { display: flex; justify-content: space-between; align-items: center; }
+        .face-card .face-label { font-size: 13px; color: #e6e6e6; font-weight: 500; }
+        .face-card .face-angle { font-size: 10px; color: #5a7a9a; padding: 2px 6px; background: #0d1117; border-radius: 3px; }
+        .face-card .face-similarity { font-size: 11px; color: #51cf66; margin-top: 4px; }
+
+        .calibrate-form { padding: 16px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .calibrate-form h3 { font-size: 11px; color: #5a7a9a; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label { font-size: 11px; color: #5a7a9a; }
+        .form-group input, .form-group select {
+            padding: 8px 10px; background: #161b22; border: 1px solid #1e3a5f;
+            border-radius: 4px; color: #c8d6e5; font-size: 13px; font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #00d4ff; }
+
+        .btn {
+            padding: 8px 16px; border: 1px solid #1e3a5f; border-radius: 4px;
+            background: transparent; color: #00d4ff; cursor: pointer; font-size: 12px;
+            transition: all 0.2s; font-family: inherit;
+        }
+        .btn:hover { background: rgba(0,212,255,0.1); border-color: #00d4ff; }
+        .btn-primary { background: #00d4ff; color: #0a0e17; border-color: #00d4ff; font-weight: 600; }
+        .btn-primary:hover { background: #00b8e6; }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-danger { color: #ff4757; border-color: #ff4757; }
+        .btn-danger:hover { background: rgba(255,71,87,0.1); }
+
+        .toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            padding: 10px 20px; border-radius: 6px; font-size: 13px; z-index: 999;
+            transition: opacity 0.3s; opacity: 0; pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+        .toast.success { background: #51cf66; color: #0a0e17; }
+        .toast.error { background: #ff4757; color: #fff; }
+
+        .existing-list { max-height: 120px; overflow-y: auto; }
+        .existing-item {
+            display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+            border-radius: 4px; cursor: pointer; font-size: 12px; transition: background 0.15s;
+        }
+        .existing-item:hover { background: #1a2332; }
+        .existing-item .dot { width: 8px; height: 8px; border-radius: 50%; background: #00d4ff; }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 2px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>CALIBRADOR DE ROSTOS</h1>
+        <div class="nav">
+            <a href="/">Matriz</a>
+            <a href="/shell">Shell 3D</a>
+            <a href="/identities">Identidades</a>
+            <a href="/embeddings">Embeddings</a>
+            <a href="/calibrate" class="active">Calibrar</a>
+            <a href="/cardiac">Cardíaco</a>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="viewport" id="viewport">
+            <img id="live-frame" src="" alt="Frame ao vivo" style="display:none" />
+            <canvas id="overlay"></canvas>
+            <div id="click-layer"></div>
+            <div class="no-signal" id="no-signal">
+                <div class="icon">◉</div>
+                <div>Aguardando stream visual...</div>
+                <div style="font-size:11px">Certifique-se de que o webcam_sensor está ativo</div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="sidebar-section">
+                <h3>Stream</h3>
+                <div class="status-row">
+                    <span class="status-label">Status</span>
+                    <span class="status-value" id="stream-status">OFFLINE</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Rostos detectados</span>
+                    <span class="status-value" id="faces-count">0</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Último frame</span>
+                    <span class="status-value" id="last-frame-id">—</span>
+                </div>
+            </div>
+
+            <div class="sidebar-section" style="flex:1; overflow-y:auto;">
+                <h3>Rostos Detectados</h3>
+                <div id="face-list"></div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Identidades Existentes</h3>
+                <div class="existing-list" id="existing-list"></div>
+            </div>
+
+            <div class="calibrate-form" id="calibrate-form" style="display:none">
+                <h3>Calibrar Rosto Selecionado</h3>
+                <div class="form-group">
+                    <label>Nome</label>
+                    <input type="text" id="input-name" placeholder="Nome da pessoa" list="names-datalist" />
+                    <datalist id="names-datalist"></datalist>
+                </div>
+                <div class="form-group">
+                    <label>Ângulo</label>
+                    <select id="input-angle">
+                        <option value="front">Frontal</option>
+                        <option value="left">Esquerda</option>
+                        <option value="right">Direita</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                    <button class="btn btn-primary" id="btn-save" onclick="saveCalibration()">Salvar Calibração</button>
+                    <button class="btn btn-danger" onclick="clearSelection()">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let latestData = null;
+        let selectedFaceIdx = null;
+        let identities = [];
+        const img = document.getElementById('live-frame');
+        const overlay = document.getElementById('overlay');
+        const ctx = overlay.getContext('2d');
+        const clickLayer = document.getElementById('click-layer');
+
+        clickLayer.addEventListener('click', (e) => {
+            if (!latestData || !latestData.boxes || latestData.boxes.length === 0) return;
+            const rect = document.getElementById('viewport').getBoundingClientRect();
+            const imgRect = img.getBoundingClientRect();
+            const mx = e.clientX - imgRect.left;
+            const my = e.clientY - imgRect.top;
+            const scaleX = img.naturalWidth / imgRect.width;
+            const scaleY = img.naturalHeight / imgRect.height;
+
+            for (let i = 0; i < latestData.boxes.length; i++) {
+                const [top, right, bottom, left] = latestData.boxes[i];
+                const sx = left * scaleX;
+                const sy = top * scaleY;
+                const sw = (right - left) * scaleX;
+                const sh = (bottom - top) * scaleY;
+                if (mx >= sx && mx <= sx + sw && my >= sy && my <= sy + sh) {
+                    selectFace(i);
+                    return;
+                }
+            }
+            clearSelection();
+        });
+
+        function selectFace(idx) {
+            selectedFaceIdx = idx;
+            const face = latestData.boxes[idx];
+            const name = latestData.names[idx] || '';
+            const embedding = latestData.embeddings[idx];
+
+            document.getElementById('calibrate-form').style.display = 'flex';
+            document.getElementById('input-name').value = (name && !name.includes('Desconhecido') && !name.includes('Imprinting')) ? name : '';
+            
+            const angle = detectAngle(face);
+            document.getElementById('input-angle').value = angle;
+
+            renderFaceList();
+        }
+
+        function clearSelection() {
+            selectedFaceIdx = null;
+            document.getElementById('calibrate-form').style.display = 'none';
+            document.getElementById('input-name').value = '';
+            renderFaceList();
+        }
+
+        function detectAngle(box) {
+            if (!box) return 'front';
+            const [top, right, bottom, left] = box;
+            const cx = (left + right) / 2;
+            const vw = img.naturalWidth || 640;
+            const ratio = cx / vw;
+            if (ratio < 0.35) return 'left';
+            if (ratio > 0.65) return 'right';
+            return 'front';
+        }
+
+        async function saveCalibration() {
+            if (selectedFaceIdx === null || !latestData) return;
+            const name = document.getElementById('input-name').value.trim();
+            const angle = document.getElementById('input-angle').value;
+            const embedding = latestData.embeddings[selectedFaceIdx];
+
+            if (!name) { showToast('Digite um nome', 'error'); return; }
+            if (!embedding) { showToast('Embedding não disponível', 'error'); return; }
+
+            document.getElementById('btn-save').disabled = true;
+            try {
+                const res = await fetch('/api/calibrate/save', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ name, angle, embedding })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    showToast(`Calibrado: ${name} (${angle})`, 'success');
+                    clearSelection();
+                    loadIdentities();
+                } else {
+                    showToast(data.error || 'Erro ao salvar', 'error');
+                }
+            } catch (e) {
+                showToast('Erro de conexão', 'error');
+            }
+            document.getElementById('btn-save').disabled = false;
+        }
+
+        async function loadFrame() {
+            try {
+                const res = await fetch('/api/vision/latest');
+                const data = await res.json();
+                
+                if (data.image && data.image.length > 100) {
+                    latestData = data;
+                    img.src = 'data:image/jpeg;base64,' + data.image;
+                    img.style.display = 'block';
+                    document.getElementById('no-signal').style.display = 'none';
+                    document.getElementById('stream-status').textContent = 'ONLINE';
+                    document.getElementById('stream-status').className = 'status-value online';
+                    document.getElementById('faces-count').textContent = data.boxes ? data.boxes.length : 0;
+                    document.getElementById('last-frame-id').textContent = '#' + (data.frame_id || '—');
+                    renderFaceList();
+                    drawOverlay();
+                } else {
+                    document.getElementById('stream-status').textContent = 'AGUARDANDO';
+                    document.getElementById('stream-status').className = 'status-value';
+                }
+            } catch (e) {
+                document.getElementById('stream-status').textContent = 'OFFLINE';
+                document.getElementById('stream-status').className = 'status-value offline';
+            }
+        }
+
+        function drawOverlay() {
+            if (!latestData || !latestData.boxes) return;
+            img.onload = () => {
+                overlay.width = img.clientWidth;
+                overlay.height = img.clientHeight;
+                const sx = img.clientWidth / img.naturalWidth;
+                const sy = img.clientHeight / img.naturalHeight;
+                ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+                latestData.boxes.forEach((box, i) => {
+                    const [top, right, bottom, left] = box;
+                    const x = left * sx, y = top * sy;
+                    const w = (right - left) * sx, h = (bottom - top) * sy;
+
+                    const isSelected = i === selectedFaceIdx;
+                    const isKnown = latestData.names[i] && !latestData.names[i].includes('Desconhecido') && !latestData.names[i].includes('Imprinting');
+
+                    ctx.strokeStyle = isSelected ? '#00d4ff' : (isKnown ? '#51cf66' : '#ff4757');
+                    ctx.lineWidth = isSelected ? 3 : 2;
+                    ctx.strokeRect(x, y, w, h);
+
+                    ctx.fillStyle = isSelected ? 'rgba(0,212,255,0.15)' : (isKnown ? 'rgba(81,207,102,0.1)' : 'rgba(255,71,87,0.1)');
+                    ctx.fillRect(x, y, w, h);
+
+                    const label = latestData.names[i] || '?';
+                    ctx.font = '12px monospace';
+                    ctx.fillStyle = ctx.strokeStyle;
+                    const tw = ctx.measureText(label).width;
+                    ctx.fillRect(x, y - 20, tw + 10, 20);
+                    ctx.fillStyle = '#0a0e17';
+                    ctx.fillText(label, x + 5, y - 6);
+                });
+            };
+            img.onload();
+        }
+
+        function renderFaceList() {
+            if (!latestData || !latestData.boxes) {
+                document.getElementById('face-list').innerHTML = '<div style="color:#5a7a9a;font-size:12px">Nenhum rosto detectado</div>';
+                return;
+            }
+
+            const list = document.getElementById('face-list');
+            list.innerHTML = latestData.boxes.map((box, i) => {
+                const name = latestData.names[i] || '?';
+                const angle = detectAngle(box);
+                const sim = latestData.identities && latestData.identities[i] ? 'Calibrado' : 'Não calibrado';
+                const simColor = latestData.identities && latestData.identities[i] ? '#51cf66' : '#ff4757';
+                return `
+                    <div class="face-card ${i === selectedFaceIdx ? 'selected' : ''}" onclick="selectFace(${i})">
+                        <div class="face-header">
+                            <span class="face-label">${name}</span>
+                            <span class="face-angle">${angle}</span>
+                        </div>
+                        <div class="face-similarity" style="color:${simColor}">${sim}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function loadIdentities() {
+            try {
+                const res = await fetch('/api/identities');
+                const data = await res.json();
+                identities = data.identities || [];
+                const list = document.getElementById('existing-list');
+                list.innerHTML = identities.map(ident => `
+                    <div class="existing-item" onclick="document.getElementById('input-name').value='${ident.apelido || ident.nome}'">
+                        <div class="dot"></div>
+                        <span>${ident.apelido || ident.nome}</span>
+                        <span style="color:#5a7a9a;font-size:10px;margin-left:auto">${ident.face_count || 0} ângulos</span>
+                    </div>
+                `).join('');
+
+                const datalist = document.getElementById('names-datalist');
+                datalist.innerHTML = identities.map(ident =>
+                    `<option value="${ident.apelido || ident.nome}">`
+                ).join('');
+            } catch (e) {}
+        }
+
+        function showToast(msg, type) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = `toast ${type} show`;
+            setTimeout(() => { t.className = 'toast'; }, 2500);
+        }
+
+        loadFrame();
+        loadIdentities();
+        setInterval(loadFrame, 1000);
+    </script>
+</body>
+</html>

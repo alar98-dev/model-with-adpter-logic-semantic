@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Aeon - Casca Externa</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #000; 
+        }
+        canvas { 
+            display: block; 
+            filter: contrast(1.2) saturate(1.5);
+        }
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: rgba(0, 255, 255, 0.5);
+            font-family: monospace;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="hud">AEON_KERNEL // EXTERNAL HULL PROJECTION</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.005);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 100;
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        
+        // Criando o "Anjo Matemático" - Um Icosaedro de alta densidade
+        const geometry = new THREE.IcosahedronGeometry(40, 5);
+        const basePositions = new Float32Array(geometry.attributes.position.array);
+        
+        // Usamos linhas/pontos para simular o esqueleto geométrico
+        const material = new THREE.PointsMaterial({
+            size: 0.8,
+            vertexColors: true,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            opacity: 0.9
+        });
+        
+        const mesh = new THREE.Points(geometry, material);
+        scene.add(mesh);
+
+        let targetArray = new Float32Array(4096);
+        let currentArray = new Float32Array(4096);
+        
+        function updateTargetMatrix(base64Data) {
+            if (!base64Data) return;
+            const binaryString = atob(base64Data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const floatArray = new Float32Array(bytes.buffer);
+            if(floatArray.length === 4096) {
+                targetArray = floatArray;
+            }
+        }
+        
+        const eventSource = new EventSource('/api/event-stream');
+        eventSource.addEventListener('matrix_update', (e) => {
+            const data = JSON.parse(e.data);
+            if(data.chaos_matrix) {
+                updateTargetMatrix(data.chaos_matrix);
+            }
+        });
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        const colors = [];
+        for ( let i = 0; i < geometry.attributes.position.count; i ++ ) {
+            colors.push( 0, 1, 1 ); 
+        }
+        geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            mesh.rotation.y += 0.0015;
+            mesh.rotation.z += 0.0005;
+            mesh.rotation.x += 0.001;
+            
+            const positions = mesh.geometry.attributes.position.array;
+            const colorAttr = mesh.geometry.attributes.color.array;
+            
+            const timeRaw = Date.now();
+            const timeBreath = Math.sin(timeRaw * 0.001) * 2.0;
+            const fluidTime = timeRaw * 0.002;
+            
+            for (let i = 0; i < geometry.attributes.position.count; i++) {
+                const chaosIdx = i % 4096;
+                
+                // LERP fluido da tensão
+                currentArray[chaosIdx] += (targetArray[chaosIdx] - currentArray[chaosIdx]) * 0.08;
+                const tension = currentArray[chaosIdx];
+                
+                const ix = i * 3;
+                const iy = i * 3 + 1;
+                const iz = i * 3 + 2;
+                
+                const bx = basePositions[ix];
+                const by = basePositions[iy];
+                const bz = basePositions[iz];
+                
+                // Normaliza o vetor para expandir a geometria
+                const dist = Math.sqrt(bx*bx + by*by + bz*bz);
+                const nx = bx / dist;
+                const ny = by / dist;
+                const nz = bz / dist;
+                
+                let expand = 0;
+                
+                // Coloração e Física baseada na Entropia vs Negentropia
+                const energy = Math.abs(tension);
+                const normalizedEnergy = Math.min(1.0, energy / 1.5);
+                
+                if (tension < 0) { 
+                    // Frio / Vácuo / Negentropia -> O Fluxo Ciano se torna ÁGUA
+                    // Cria ondas orgânicas na superfície usando a posição base
+                    const waveX = Math.sin(bx * 0.2 + fluidTime);
+                    const waveZ = Math.cos(bz * 0.2 + fluidTime);
+                    const waterFlow = (waveX * waveZ) * (energy * 10.0);
+                    
+                    expand = waterFlow + timeBreath;
+                    
+                    colorAttr[ix] = 0.0;
+                    colorAttr[iy] = normalizedEnergy + 0.2;
+                    colorAttr[iz] = 1.0;
+                } else { 
+                    // Dor / Processamento pesado (Vermelho/Laranja) -> Espinhos Térmicos
+                    expand = tension * 15.0 + timeBreath;
+                    
+                    colorAttr[ix] = 1.0;
+                    colorAttr[iy] = 0.3 * normalizedEnergy;
+                    colorAttr[iz] = 0.0;
+                }
+                
+                positions[ix] = bx + nx * expand;
+                positions[iy] = by + ny * expand;
+                positions[iz] = bz + nz * expand;
+            }
+            
+            mesh.geometry.attributes.position.needsUpdate = true;
+            mesh.geometry.attributes.color.needsUpdate = true;
+            
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+    </script>
+</body>
+</html>

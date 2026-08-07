@@ -1,0 +1,51 @@
+# =========================================================
+# SWA Runtime - Intel XPU / Gemma 3
+# =========================================================
+
+# -----------------------------
+# PyTorch XPU Stack
+# -----------------------------
+--index-url https://download.pytorch.org/whl/xpu
+
+torch==2.6.0+xpu
+torchvision==0.21.0+xpu
+torchaudio==2.6.0+xpu
+
+# -----------------------------
+# Intel XPU Optimization
+# -----------------------------
+intel-extension-for-pytorch==2.6.0+xpu
+
+# -----------------------------
+# Transformers Runtime
+# -----------------------------
+transformers>=4.51.0
+accelerate>=1.1.0
+sentencepiece>=0.2.0
+safetensors>=0.4.5
+
+# -----------------------------
+# Runtime API
+# -----------------------------
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+orjson>=3.10.7
+mcp>=1.0.0
+sse-starlette>=2.0.0
+
+# -----------------------------
+# Utils
+# -----------------------------
+numpy<2.3
+psutil==6.0.0
+rich==13.7.1
+blake3>=1.0.0
+psycopg2-binary>=2.9.9
+
+# -----------------------------
+# Vision Runtime
+# -----------------------------
+pillow>=10.4.0
+opencv-python-headless>=4.10.0peft>=0.11.0
+outlines>=0.0.44

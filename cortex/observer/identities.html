@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWA-Aeon — Gestão de Identidades</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0e17; color: #c8d6e5; font-family: 'Segoe UI', monospace; min-height: 100vh; }
+        
+        .header {
+            background: linear-gradient(135deg, #0d1321 0%, #1a1a2e 100%);
+            border-bottom: 1px solid #1e3a5f;
+            padding: 16px 24px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .header h1 { font-size: 18px; color: #00d4ff; font-weight: 600; letter-spacing: 1px; }
+        .header .nav { display: flex; gap: 16px; }
+        .header .nav a { color: #5a7a9a; text-decoration: none; font-size: 13px; padding: 6px 12px; border-radius: 4px; transition: all 0.2s; }
+        .header .nav a:hover, .header .nav a.active { color: #00d4ff; background: rgba(0,212,255,0.1); }
+
+        .main { display: flex; height: calc(100vh - 56px); }
+
+        .sidebar {
+            width: 320px; min-width: 320px;
+            background: #0d1117;
+            border-right: 1px solid #1e3a5f;
+            display: flex; flex-direction: column;
+        }
+        .sidebar-header {
+            padding: 16px; border-bottom: 1px solid #1e3a5f;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .sidebar-header h2 { font-size: 14px; color: #8899aa; }
+        .btn { 
+            padding: 6px 14px; border: 1px solid #1e3a5f; border-radius: 4px;
+            background: transparent; color: #00d4ff; cursor: pointer; font-size: 12px;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: rgba(0,212,255,0.1); border-color: #00d4ff; }
+        .btn-primary { background: #00d4ff; color: #0a0e17; border-color: #00d4ff; font-weight: 600; }
+        .btn-primary:hover { background: #00b8e6; }
+        .btn-danger { color: #ff4757; border-color: #ff4757; }
+        .btn-danger:hover { background: rgba(255,71,87,0.1); }
+        .btn-sm { padding: 4px 10px; font-size: 11px; }
+
+        .identity-list { flex: 1; overflow-y: auto; }
+        .identity-item {
+            padding: 14px 16px;
+            border-bottom: 1px solid #161b22;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .identity-item:hover { background: #161b22; }
+        .identity-item.active { background: #1a2332; border-left: 3px solid #00d4ff; }
+        .identity-name { font-size: 15px; color: #e6e6e6; font-weight: 500; }
+        .identity-sub { font-size: 12px; color: #5a7a9a; margin-top: 3px; }
+        .identity-badges { display: flex; gap: 6px; margin-top: 6px; }
+        .badge {
+            font-size: 10px; padding: 2px 8px; border-radius: 10px;
+            background: rgba(0,212,255,0.1); color: #00d4ff; border: 1px solid rgba(0,212,255,0.2);
+        }
+        .badge.admin { background: rgba(255,165,0,0.1); color: #ffa500; border-color: rgba(255,165,0,0.2); }
+        .badge.inactive { background: rgba(255,71,87,0.1); color: #ff4757; border-color: rgba(255,71,87,0.2); }
+        .badge.live { background: rgba(0,255,136,0.15); color: #00ff88; border-color: rgba(0,255,136,0.3); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+
+        .detail-panel {
+            flex: 1; padding: 24px; overflow-y: auto;
+        }
+        .detail-empty {
+            display: flex; align-items: center; justify-content: center;
+            height: 100%; color: #3a4a5a; font-size: 14px;
+        }
+        .detail-card {
+            background: #0d1117;
+            border: 1px solid #1e3a5f;
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 700px;
+        }
+        .detail-card h3 { font-size: 20px; color: #00d4ff; margin-bottom: 20px; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group.full { grid-column: 1 / -1; }
+        .form-group label { font-size: 12px; color: #5a7a9a; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 10px 12px;
+            background: #161b22;
+            border: 1px solid #1e3a5f;
+            border-radius: 4px;
+            color: #c8d6e5;
+            font-family: 'Segoe UI', monospace;
+            font-size: 13px;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none; border-color: #00d4ff;
+        }
+        .form-group textarea { min-height: 60px; resize: vertical; }
+
+        .section-title {
+            font-size: 13px; color: #5a7a9a; text-transform: uppercase;
+            letter-spacing: 1px; margin: 24px 0 12px 0;
+            padding-bottom: 8px; border-bottom: 1px solid #161b22;
+        }
+
+        .faces-grid { display: flex; gap: 12px; flex-wrap: wrap; }
+        .face-card {
+            background: #161b22; border: 1px solid #1e3a5f; border-radius: 6px;
+            padding: 12px; min-width: 140px; text-align: center;
+        }
+        .face-angle { font-size: 11px; color: #5a7a9a; text-transform: uppercase; margin-bottom: 6px; }
+        .face-icon { font-size: 32px; margin: 8px 0; }
+        .face-threshold { font-size: 11px; color: #3a4a5a; }
+
+        .stats-bar {
+            display: flex; gap: 20px; padding: 12px 0;
+        }
+        .stat { text-align: center; }
+        .stat-value { font-size: 24px; color: #00d4ff; font-weight: 600; }
+        .stat-label { font-size: 11px; color: #5a7a9a; margin-top: 2px; }
+
+        .actions-bar { display: flex; gap: 10px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #161b22; }
+
+        .toast {
+            position: fixed; bottom: 20px; right: 20px;
+            background: #1a2332; border: 1px solid #00d4ff;
+            color: #00d4ff; padding: 12px 20px; border-radius: 6px;
+            font-size: 13px; z-index: 1000;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.7); z-index: 100;
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: #0d1117; border: 1px solid #1e3a5f;
+            border-radius: 8px; padding: 24px; width: 420px;
+        }
+        .modal h3 { margin-bottom: 16px; font-size: 16px; color: #00d4ff; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>SWA-AEON — IDENTIDADES</h1>
+        <div class="nav">
+            <a href="/">Matriz</a>
+            <a href="/shell">Shell 3D</a>
+            <a href="/mycelium">Rede Micelial</a>
+            <a href="/identities" class="active">Identidades</a>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>REGISTRADAS (<span id="total-count">0</span>)</h2>
+                <button class="btn btn-primary btn-sm" onclick="openNewModal()">+ Nova</button>
+            </div>
+            <div class="identity-list" id="identity-list"></div>
+        </div>
+
+        <div class="detail-panel" id="detail-panel">
+            <div class="detail-empty">Selecione uma identidade para visualizar</div>
+        </div>
+    </div>
+
+    <!-- Modal: Nova Identidade -->
+    <div class="modal-overlay" id="new-modal">
+        <div class="modal">
+            <h3>Nova Identidade</h3>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Nome *</label>
+                    <input type="text" id="new-nome" placeholder="Nome completo">
+                </div>
+                <div class="form-group">
+                    <label>Apelido</label>
+                    <input type="text" id="new-apelido" placeholder="Como é chamado">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="new-email" placeholder="email@exemplo.com">
+                </div>
+                <div class="form-group">
+                    <label>Papel</label>
+                    <select id="new-papel">
+                        <option value="usuario">Usuário</option>
+                        <option value="admin">Admin</option>
+                        <option value="visitante">Visitante</option>
+                    </select>
+                </div>
+            </div>
+            <div class="actions-bar">
+                <button class="btn btn-primary" onclick="createIdentity()">Criar</button>
+                <button class="btn" onclick="closeNewModal()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let identities = [];
+        let selectedId = null;
+        let presence = {};
+
+        async function loadIdentities() {
+            try {
+                const r = await fetch('/api/identities');
+                const data = await r.json();
+                identities = data.identities || [];
+                document.getElementById('total-count').textContent = identities.length;
+                renderList();
+                if (selectedId) renderDetail(selectedId);
+            } catch (e) {
+                console.error('Erro ao carregar identidades:', e);
+            }
+        }
+
+        async function loadPresence() {
+            try {
+                const r = await fetch('/api/presence');
+                presence = await r.json();
+                renderList();
+                if (selectedId) renderPresence(selectedId);
+            } catch (e) { }
+        }
+
+        function renderList() {
+            const list = document.getElementById('identity-list');
+            const liveNames = (presence.identities || []).map(i => i.name);
+            list.innerHTML = identities.map(id => {
+                const isLive = liveNames.some(n => n && (id.nome === n || id.apelido === n || n.startsWith(id.apelido)));
+                return `
+                <div class="identity-item ${id.id === selectedId ? 'active' : ''}" onclick="selectIdentity('${id.id}')">
+                    <div class="identity-name">${id.nome} ${isLive ? '<span class="badge live">AO VIVO</span>' : ''}</div>
+                    <div class="identity-sub">${id.apelido || '—'} ${id.email ? '· ' + id.email : ''}</div>
+                    <div class="identity-badges">
+                        <span class="badge ${id.papel}">${id.papel}</span>
+                        ${id.angles ? id.angles.map(a => `<span class="badge">${a}</span>`).join('') : ''}
+                        ${!id.ativo ? '<span class="badge inactive">inativo</span>' : ''}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function selectIdentity(id) {
+            selectedId = id;
+            renderList();
+            renderDetail(id);
+            loadHistory(id);
+        }
+
+        function renderPresence(id) {
+            const ident = identities.find(i => i.id === id);
+            if (!ident) return;
+            const el = document.getElementById('presence-section');
+            if (!el) return;
+            const live = (presence.identities || []).find(i => {
+                const n = i.name || '';
+                return ident.nome === n || ident.apelido === n || n.startsWith(ident.apelido || '');
+            });
+            if (live) {
+                el.innerHTML = '<div style="padding:10px;background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.2);border-radius:6px;color:#00ff88;font-size:13px">● Presente agora na câmera</div>';
+            } else {
+                el.innerHTML = '<div style="padding:10px;color:#3a4a5a;font-size:13px">Não detectado no momento</div>';
+            }
+        }
+
+        async function loadHistory(id) {
+            try {
+                const r = await fetch('/api/identities/' + id + '/history');
+                const data = await r.json();
+                const el = document.getElementById('history-section');
+                if (!el) return;
+                const history = data.history || [];
+                if (history.length === 0) {
+                    el.innerHTML = '<div style="padding:10px;color:#3a4a5a;font-size:13px">Nenhum reconhecimento registrado</div>';
+                    return;
+                }
+                el.innerHTML = history.map(function(h) {
+                    return '<div style="padding:6px 0;border-bottom:1px solid #161b22;font-size:12px;display:flex;justify-content:space-between">' +
+                        '<span style="color:#5a7a9a">' + (h.detected_at || '—') + '</span>' +
+                        '<span style="color:#00d4ff">' + ((h.confidence || 0) * 100).toFixed(1) + '%</span>' +
+                        '<span style="color:#8899aa">' + (h.angle || '—') + '</span>' +
+                    '</div>';
+                }).join('');
+            } catch (e) { }
+        }
+
+        function renderDetail(id) {
+            const ident = identities.find(i => i.id === id);
+            if (!ident) return;
+
+            const panel = document.getElementById('detail-panel');
+            panel.innerHTML = `
+                <div class="detail-card">
+                    <h3>${ident.nome}</h3>
+                    
+                    <div class="stats-bar">
+                        <div class="stat">
+                            <div class="stat-value">${ident.face_count || 0}</div>
+                            <div class="stat-label">Encodings</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${(ident.angles || []).length}</div>
+                            <div class="stat-label">Ângulos</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${ident.papel === 'admin' ? '⚡' : '👤'}</div>
+                            <div class="stat-label">${ident.papel}</div>
+                        </div>
+                    </div>
+
+                    <div class="section-title">Dados Cadastrais</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Nome</label>
+                            <input type="text" id="ed-nome" value="${ident.nome || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>Apelido</label>
+                            <input type="text" id="ed-apelido" value="${ident.apelido || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="ed-email" value="${ident.email || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>Papel</label>
+                            <select id="ed-papel">
+                                <option value="usuario" ${ident.papel === 'usuario' ? 'selected' : ''}>Usuário</option>
+                                <option value="admin" ${ident.papel === 'admin' ? 'selected' : ''}>Admin</option>
+                                <option value="visitante" ${ident.papel === 'visitante' ? 'selected' : ''}>Visitante</option>
+                            </select>
+                        </div>
+                        <div class="form-group full">
+                            <label>ID</label>
+                            <input type="text" value="${ident.id}" disabled style="opacity:0.5">
+                        </div>
+                        <div class="form-group full">
+                            <label>Criado em</label>
+                            <input type="text" value="${ident.created_at || '—'}" disabled style="opacity:0.5">
+                        </div>
+                    </div>
+
+                    <div class="section-title">Encodings Faciais</div>
+                    <div class="faces-grid">
+                        ${['front', 'left', 'right'].map(angle => {
+                            const face = (ident.faces || []).find(f => f.angle === angle);
+                            if (!face) {
+                                return `<div class="face-card" style="opacity:0.3">
+                                    <div class="face-angle">${angle}</div>
+                                    <div class="face-icon">○</div>
+                                    <div class="face-threshold">sem encoding</div>
+                                </div>`;
+                            }
+                            return `<div class="face-card">
+                                <div class="face-angle">${angle}</div>
+                                <div class="face-icon">◉</div>
+                                <div class="face-threshold">threshold: ${face.confidence_threshold || 0.50}</div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+
+                    <div class="section-title">Metadados</div>
+                    <div class="form-group full">
+                        <textarea id="ed-metadata" rows="4" style="font-family:monospace;font-size:11px">${JSON.stringify(ident.metadata || {}, null, 2)}</textarea>
+                    </div>
+
+                    <div class="section-title">Presença em Tempo Real</div>
+                    <div id="presence-section"></div>
+
+                    <div class="section-title">Histórico de Reconhecimento</div>
+                    <div id="history-section" style="max-height:200px;overflow-y:auto"></div>
+
+                    <div class="section-title">Presença em Tempo Real</div>
+                    <div id="presence-section">Carregando...</div>
+
+                    <div class="section-title">Histórico de Reconhecimento</div>
+                    <div id="history-section" style="max-height:200px;overflow-y:auto">Carregando...</div>
+
+                    <div class="actions-bar">
+                        <button class="btn btn-primary" onclick="saveIdentity('${ident.id}')">Salvar Alterações</button>
+                        <button class="btn btn-danger" onclick="deleteIdentity('${ident.id}')">Excluir</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function saveIdentity(id) {
+            const body = {
+                nome: document.getElementById('ed-nome').value,
+                apelido: document.getElementById('ed-apelido').value || null,
+                email: document.getElementById('ed-email').value || null,
+                papel: document.getElementById('ed-papel').value,
+            };
+            try {
+                const metaRaw = document.getElementById('ed-metadata').value;
+                if (metaRaw.trim()) body.metadata = JSON.parse(metaRaw);
+            } catch(e) { }
+
+            try {
+                await fetch(`/api/identities/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body)
+                });
+                toast('Identidade atualizada');
+                await loadIdentities();
+            } catch (e) {
+                toast('Erro ao salvar: ' + e.message);
+            }
+        }
+
+        async function deleteIdentity(id) {
+            if (!confirm('Excluir esta identidade?')) return;
+            try {
+                await fetch(`/api/identities/${id}`, { method: 'DELETE' });
+                toast('Identidade excluída');
+                selectedId = null;
+                await loadIdentities();
+                document.getElementById('detail-panel').innerHTML = '<div class="detail-empty">Selecione uma identidade</div>';
+            } catch (e) {
+                toast('Erro ao excluir: ' + e.message);
+            }
+        }
+
+        function openNewModal() { document.getElementById('new-modal').classList.add('open'); }
+        function closeNewModal() { document.getElementById('new-modal').classList.remove('open'); }
+
+        async function createIdentity() {
+            const body = {
+                nome: document.getElementById('new-nome').value,
+                apelido: document.getElementById('new-apelido').value || null,
+                email: document.getElementById('new-email').value || null,
+                papel: document.getElementById('new-papel').value,
+            };
+            if (!body.nome) { toast('Nome é obrigatório'); return; }
+            try {
+                await fetch('/api/identities', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body)
+                });
+                closeNewModal();
+                toast('Identidade criada');
+                await loadIdentities();
+            } catch (e) {
+                toast('Erro ao criar: ' + e.message);
+            }
+        }
+
+        function toast(msg) {
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+
+        // Auto-refresh a cada 3s
+        loadIdentities();
+        loadPresence();
+        setInterval(loadIdentities, 5000);
+        setInterval(loadPresence, 3000);
+    </script>
+</body>
+</html>

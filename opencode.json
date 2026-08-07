@@ -1,0 +1,16 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "swa-aeon": {
+      "name": "SWA AEON Core",
+      "options": {
+        "baseURL": "http://127.0.0.1:20000/v1"
+      },
+      "models": {
+        "gemma-3-1b-it": {
+          "name": "Gemma 3 1B IT (AeonC Core)"
+        }
+      }
+    }
+  }
+}

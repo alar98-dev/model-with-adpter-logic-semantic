@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWA-Aeon — Mapa Cardíaco 3D</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0e17; color: #c8d6e5; font-family: 'Segoe UI', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        .header {
+            background: linear-gradient(135deg, #0d1321 0%, #1a1a2e 100%);
+            border-bottom: 1px solid #1e3a5f;
+            padding: 12px 24px;
+            display: flex; align-items: center; justify-content: space-between;
+            z-index: 10;
+        }
+        .header h1 { font-size: 16px; color: #ff4757; font-weight: 600; letter-spacing: 1px; }
+        .header .nav { display: flex; gap: 12px; }
+        .header .nav a { color: #5a7a9a; text-decoration: none; font-size: 12px; padding: 5px 10px; border-radius: 4px; transition: all 0.2s; }
+        .header .nav a:hover, .header .nav a.active { color: #ff4757; background: rgba(255,71,87,0.1); }
+
+        .main { flex: 1; display: flex; overflow: hidden; position: relative; }
+
+        #three-canvas { flex: 1; display: block; }
+
+        .sidebar {
+            width: 300px; background: rgba(13,17,23,0.92); border-left: 1px solid #1e3a5f;
+            display: flex; flex-direction: column; position: absolute; right: 0; top: 0; bottom: 0;
+            z-index: 5; backdrop-filter: blur(8px);
+        }
+
+        .sidebar-section { padding: 14px; border-bottom: 1px solid #161b22; }
+        .sidebar-section h3 { font-size: 10px; color: #5a7a9a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+
+        .stat-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; }
+        .stat-label { color: #5a7a9a; }
+        .stat-value { color: #ff4757; font-weight: 500; }
+
+        .identity-card {
+            background: #161b22; border: 1px solid #1e3a5f; border-radius: 6px;
+            padding: 10px 12px; margin-bottom: 6px; cursor: pointer; transition: all 0.2s;
+            position: relative; overflow: hidden;
+        }
+        .identity-card:hover { border-color: #ff4757; }
+        .identity-card.selected { border-color: #ff4757; box-shadow: 0 0 16px rgba(255,71,87,0.2); }
+        .identity-card .id-header { display: flex; justify-content: space-between; align-items: center; }
+        .identity-card .id-name { font-size: 13px; color: #e6e6e6; font-weight: 500; }
+        .identity-card .id-count { font-size: 10px; color: #5a7a9a; }
+        .identity-card .id-stats { font-size: 10px; color: #5a7a9a; margin-top: 4px; display: flex; gap: 10px; }
+        .identity-card .id-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+
+        .ecg-mini { width: 100%; height: 30px; margin-top: 6px; }
+        .ecg-mini canvas { width: 100%; height: 100%; }
+
+        .pulse-indicator {
+            position: absolute; top: 10px; right: 10px;
+            width: 6px; height: 6px; border-radius: 50%;
+            background: #ff4757; animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.5); }
+        }
+
+        .legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        .legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: #5a7a9a; }
+        .legend-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+        .controls { margin-top: 8px; }
+        .controls label { font-size: 10px; color: #5a7a9a; display: block; margin-bottom: 3px; }
+        .controls select, .controls input[type="range"] {
+            width: 100%; padding: 5px; background: #161b22; border: 1px solid #1e3a5f;
+            border-radius: 4px; color: #c8d6e5; font-size: 11px;
+        }
+
+        .no-data {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center; color: #5a7a9a;
+        }
+        .no-data .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 2px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>♥ MAPA CARDÍACO 3D — EMBEDDINGS FACIAIS</h1>
+        <div class="nav">
+            <a href="/">Matriz</a>
+            <a href="/shell">Shell 3D</a>
+            <a href="/identities">Identidades</a>
+            <a href="/embeddings">Embeddings</a>
+            <a href="/calibrate">Calibrar</a>
+            <a href="/cardiac" class="active">Cardíaco</a>
+        </div>
+    </div>
+
+    <div class="main">
+        <canvas id="three-canvas"></canvas>
+
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-section">
+                <h3>Métricas</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Identidades</span>
+                    <span class="stat-value" id="total-identities">—</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Total Embeddings</span>
+                    <span class="stat-value" id="total-embeddings">—</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Pontos por Curva</span>
+                    <span class="stat-value" id="points-per-curve">—</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Status</span>
+                    <span class="stat-value" id="heartbeat-status" style="color:#51cf66">● ATIVO</span>
+                </div>
+            </div>
+
+            <div class="sidebar-section" style="flex:1; overflow-y:auto;">
+                <h3>Identidades</h3>
+                <div id="identity-list"></div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Controles</h3>
+                <div class="controls">
+                    <label>Modo de Exibição</label>
+                    <select id="display-mode" onchange="onModeChange()">
+                        <option value="all">Todas as Curvas</option>
+                        <option value="selected">Selecionada</option>
+                        <option value="compare">Comparar</option>
+                    </select>
+
+                    <label style="margin-top:8px">Velocidade do Pulso</label>
+                    <input type="range" id="pulse-speed" min="1" max="10" value="4" oninput="onSpeedChange()">
+
+                    <label style="margin-top:8px">Intensidade</label>
+                    <input type="range" id="intensity" min="1" max="20" value="8" oninput="onIntensityChange()">
+
+                    <label style="margin-top:8px">Auto-Rotação</label>
+                    <select id="auto-rotate" onchange="toggleRotate()">
+                        <option value="true">Ativada</option>
+                        <option value="false">Desativada</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, clock;
+        let cardiacMeshes = [];
+        let cardiacData = null;
+        let selectedIdentity = null;
+        let pulseSpeed = 4;
+        let intensity = 8;
+        let autoRotate = true;
+        let rotationAngle = 0;
+        let lastUpdate = 0;
+
+        const IDENTITY_COLORS = {};
+
+        function init() {
+            const canvas = document.getElementById('three-canvas');
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x0a0e17, 0.08);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 2, 5);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth - 300, window.innerHeight - 50);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setClearColor(0x0a0e17, 1);
+
+            clock = new THREE.Clock();
+
+            const ambientLight = new THREE.AmbientLight(0x334455, 0.6);
+            scene.add(ambientLight);
+
+            const pointLight1 = new THREE.PointLight(0xff4757, 1.5, 20);
+            pointLight1.position.set(3, 3, 3);
+            scene.add(pointLight1);
+
+            const pointLight2 = new THREE.PointLight(0x00d4ff, 0.8, 20);
+            pointLight2.position.set(-3, -2, -3);
+            scene.add(pointLight2);
+
+            const gridHelper = new THREE.GridHelper(10, 20, 0x1e3a5f, 0x0d1321);
+            gridHelper.position.y = -1.5;
+            scene.add(gridHelper);
+
+            const particleGeometry = new THREE.BufferGeometry();
+            const particleCount = 200;
+            const positions = new Float32Array(particleCount * 3);
+            for (let i = 0; i < particleCount * 3; i++) {
+                positions[i] = (Math.random() - 0.5) * 12;
+            }
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const particleMaterial = new THREE.PointsMaterial({
+                color: 0xff4757, size: 0.03, transparent: true, opacity: 0.4,
+            });
+            scene.add(new THREE.Points(particleGeometry, particleMaterial));
+
+            window.addEventListener('resize', onResize);
+            animate();
+        }
+
+        function onResize() {
+            const w = window.innerWidth - 300;
+            const h = window.innerHeight - 50;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        }
+
+        function createCardiacCurve(curvePoints, color, identityIdx, isIndividual) {
+            const points = [];
+            for (const p of curvePoints) {
+                points.push(new THREE.Vector3(p[0], p[1], p[2]));
+            }
+
+            const curve = new THREE.CatmullRomCurve3(points, true);
+            const tubePoints = curve.getPoints(isIndividual ? 100 : 180);
+            const geometry = new THREE.BufferGeometry().setFromPoints(tubePoints);
+
+            const material = new THREE.LineBasicMaterial({
+                color: new THREE.Color(color),
+                transparent: true,
+                opacity: isIndividual ? 0.25 : 0.85,
+                linewidth: isIndividual ? 1 : 2,
+            });
+
+            return new THREE.Line(geometry, material);
+        }
+
+        function createGlowTube(curvePoints, color) {
+            const points = [];
+            for (const p of curvePoints) {
+                points.push(new THREE.Vector3(p[0], p[1], p[2]));
+            }
+
+            const curve = new THREE.CatmullRomCurve3(points, true);
+            const geometry = new THREE.TubeGeometry(curve, 180, 0.02 + intensity * 0.003, 8, true);
+
+            const material = new THREE.MeshPhongMaterial({
+                color: new THREE.Color(color),
+                emissive: new THREE.Color(color),
+                emissiveIntensity: 0.4,
+                transparent: true,
+                opacity: 0.6,
+                shininess: 80,
+            });
+
+            return new THREE.Mesh(geometry, material);
+        }
+
+        function buildScene() {
+            cardiacMeshes.forEach(m => scene.remove(m));
+            cardiacMeshes = [];
+
+            if (!cardiacData || !cardiacData.entities) return;
+
+            const mode = document.getElementById('display-mode').value;
+            const entities = cardiacData.entities;
+
+            entities.forEach((entity, idx) => {
+                const show = mode === 'all' ||
+                    (mode === 'selected' && selectedIdentity === entity.identity_id) ||
+                    (mode === 'compare');
+
+                if (!show) return;
+
+                const group = new THREE.Group();
+                IDENTITY_COLORS[entity.identity_id] = entity.color;
+
+                const mainCurve = createCardiacCurve(entity.cardiac_curve, entity.color, idx, false);
+                group.add(mainCurve);
+
+                const glowTube = createGlowTube(entity.cardiac_curve, entity.color);
+                group.add(glowTube);
+
+                entity.individual_curves.forEach(indCurve => {
+                    const indLine = createCardiacCurve(indCurve, entity.color, idx, true);
+                    group.add(indLine);
+                });
+
+                const centroid = entity.centroid;
+                const dotGeometry = new THREE.SphereGeometry(0.04, 16, 16);
+                const dotMaterial = new THREE.MeshPhongMaterial({
+                    color: new THREE.Color(entity.color),
+                    emissive: new THREE.Color(entity.color),
+                    emissiveIntensity: 0.8,
+                });
+                const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+                dot.position.set(centroid[0], centroid[1], centroid[2]);
+                group.add(dot);
+
+                group.userData = {
+                    identityId: entity.identity_id,
+                    nome: entity.nome,
+                    phase: entity.heartbeat_phase,
+                    amplitude: entity.heartbeat_amplitude,
+                };
+
+                scene.add(group);
+                cardiacMeshes.push(group);
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = clock.getElapsedTime();
+            const delta = clock.getDelta();
+
+            cardiacMeshes.forEach(group => {
+                const phase = group.userData.phase || 0;
+                const amp = group.userData.amplitude || 1;
+
+                const beat = Math.sin(time * pulseSpeed + phase) * 0.5 + 0.5;
+                const beatSharp = Math.pow(beat, 3);
+
+                group.children.forEach(child => {
+                    if (child.material) {
+                        if (child.isMesh) {
+                            child.material.emissiveIntensity = 0.2 + beatSharp * 0.8;
+                            const s = 1 + beatSharp * 0.05 * (intensity / 8);
+                            child.scale.set(s, s, s);
+                        }
+                    }
+                });
+
+                group.rotation.y += 0.001;
+            });
+
+            if (autoRotate) {
+                rotationAngle += 0.003;
+                const radius = 5;
+                camera.position.x = Math.sin(rotationAngle) * radius;
+                camera.position.z = Math.cos(rotationAngle) * radius;
+                camera.position.y = 2 + Math.sin(rotationAngle * 0.5) * 0.5;
+                camera.lookAt(0, 0, 0);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        async function loadData() {
+            try {
+                const res = await fetch('/api/cardiac/3d');
+                cardiacData = await res.json();
+                updateSidebar();
+                buildScene();
+                lastUpdate = Date.now();
+            } catch (e) {
+                console.error('Erro ao carregar dados cardíacos:', e);
+            }
+        }
+
+        function updateSidebar() {
+            if (!cardiacData) return;
+
+            document.getElementById('total-identities').textContent = cardiacData.total_identities;
+            document.getElementById('total-embeddings').textContent = cardiacData.total_embeddings;
+            document.getElementById('points-per-curve').textContent = cardiacData.points_per_curve;
+
+            const list = document.getElementById('identity-list');
+            list.innerHTML = cardiacData.entities.map(entity => `
+                <div class="identity-card ${selectedIdentity === entity.identity_id ? 'selected' : ''}"
+                     onclick="selectIdentity('${entity.identity_id}')">
+                    <div class="pulse-indicator"></div>
+                    <div class="id-header">
+                        <span class="id-name">
+                            <span class="id-dot" style="background:${entity.color}"></span>
+                            ${entity.nome}
+                        </span>
+                        <span class="id-count">${entity.faces_count} faces</span>
+                    </div>
+                    <div class="id-stats">
+                        <span>amp: ${entity.heartbeat_amplitude.toFixed(2)}</span>
+                        <span>fase: ${entity.heartbeat_phase.toFixed(2)}</span>
+                        <span>μ: ${entity.embedding_stats.mean.toFixed(3)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectIdentity(id) {
+            selectedIdentity = selectedIdentity === id ? null : id;
+            if (selectedIdentity) {
+                document.getElementById('display-mode').value = 'selected';
+            } else {
+                document.getElementById('display-mode').value = 'all';
+            }
+            updateSidebar();
+            buildScene();
+        }
+
+        function onModeChange() { buildScene(); }
+        function onSpeedChange() { pulseSpeed = parseInt(document.getElementById('pulse-speed').value); }
+        function onIntensityChange() {
+            intensity = parseInt(document.getElementById('intensity').value);
+            buildScene();
+        }
+        function toggleRotate() { autoRotate = document.getElementById('auto-rotate').value === 'true'; }
+
+        init();
+        loadData();
+        setInterval(loadData, 8000);
+    </script>
+</body>
+</html>

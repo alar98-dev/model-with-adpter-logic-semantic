@@ -1,0 +1,137 @@
+
+import requests
+import time
+import subprocess
+import sys
+import json
+from typing import Optional
+import os
+from swa.adapter import optimize_for_dual_cpu
+
+# Configurações - CPU/RAM DualFlow focus
+BASE_URL = "http://localhost:20000"
+ENDPOINTS = {
+    "self_check": "/api/v1/utils/self_check",
+    "llama": "/api/v1/llama_bruto",
+    "gemma": "/api/v1/chat",
+    "swa_process": "/api/v1/process",
+    "stream_dual": "/api/v1/stream_dual"
+}
+
+def get_gpu_memory() -> str:
+    try:
+        res = subprocess.check_output(["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"], stderr=subprocess.DEVNULL)
+        return f"{res.decode().strip()} MiB"
+    except:
+        return "N/A (No GPU)"
+
+def get_ram_memory() -> str:
+    try:
+        res = subprocess.check_output(["free", "-h"]).decode().split('\n')[1].split()
+        return res[2]  # Used memory
+    except:
+        return "N/A"
+
+def is_server_ready() -> bool:
+    try:
+        resp = requests.get(f"{BASE_URL}/", timeout=5)
+        return resp.status_code == 200
+    except:
+        return False
+
+def warmup():
+    # NUMA Dual CPU opt
+    optimize_for_dual_cpu()
+    
+    print("🚀 Iniciando Warm-up SWA DualFlow Stream (NUMA + GPU)...")
+    print(f"📊 Baseline - RAM: {get_ram_memory()} | VRAM: {get_gpu_memory()}")
+
+    # 1. Aguardar servidor
+    print("⏳ Aguardando servidor...")
+    max_retries = 60
+    for i in range(max_retries):
+        if is_server_ready():
+            print("✅ Servidor Online!")
+            break
+        if i % 10 == 0:
+            print(f"   Tentativa {i+1}/{max_retries}")
+        time.sleep(2)
+    else:
+        print("❌ Timeout: http://localhost:20000")
+        sys.exit(1)
+
+    # 2. Self-check
+    print("\n[1/5] Vectorizer/SWA Adapters...")
+    t0 = time.time()
+    resp = requests.get(f"{BASE_URL}{ENDPOINTS['self_check']}", timeout=30)
+    data = resp.json()
+    print(f"✔️ OK ({time.time()-t0:.2f}s) | Shapes: {data.get('self_check', {}).get('shapes', 'N/A')}")
+
+    # 3. Llama Bruto
+    print("\n[2/5] Llama-3.1 Bruto...")
+    t0 = time.time()
+    payload_llama = {"prompt": "Status Llama bruto DualFlow.", "normalize": False}
+    try:
+        resp = requests.post(f"{BASE_URL}{ENDPOINTS['llama']}", json=payload_llama, timeout=60)
+        if resp.status_code == 200:
+            result = resp.json()
+            print(f"✔️ OK ({time.time()-t0:.2f}s) | Raw: {result.get('raw', '')[:80]}...")
+        else:
+            print(f"⚠️ Llama off - Status: {resp.status_code}")
+    except Exception as e:
+        print(f"⚠️ Skip Llama: {e}")
+
+    # 4. Gemma Chat
+    print("\n[3/5] Gemma Geração Prefix...")
+    t0 = time.time()
+    payload_gemma = {"prompt": "Status DualFlow: confirme operacional."}
+    stream_resp = requests.post(f"{BASE_URL}{ENDPOINTS['gemma']}", json=payload_gemma, timeout=60, stream=True)
+    full = ''
+    if stream_resp.status_code == 200:
+        for line in stream_resp.iter_lines():
+            if line:
+                decoded = line.decode('utf-8')
+                if 'data: ' in decoded and '[DONE]' not in decoded:
+                    try:
+                        token = json.loads(decoded[6:])['token']
+                        full += token
+                    except:
+                        pass
+        print(f"✔️ OK ({time.time()-t0:.2f}s) | Gemma: {full[:80]}...")
+    else:
+        print(f"❌ Gemma: {stream_resp.status_code}")
+
+    # 5. SWA Process
+    print("\n[4/5] SWA Pipeline...")
+    t0 = time.time()
+    payload_swa = {"texts": ["Warm-up DualFlow", "NUMA stream ready"]}
+    resp = requests.post(f"{BASE_URL}{ENDPOINTS['swa_process']}", json=payload_swa, timeout=30)
+    print(f"✔️ OK ({time.time()-t0:.2f}s) | Vectors: {len(resp.json().get('results', []))}")
+
+    # 6. Stream Dual New
+    print("\n[5/5] Dual Stream /stream_dual...")
+    t0 = time.time()
+    payload_dual = {"prompt": "Test DualFlow NUMA gain."}
+    stream_resp = requests.post(f"{BASE_URL}{ENDPOINTS['stream_dual']}", json=payload_dual, timeout=60, stream=True)
+    full_dual = ''
+    if stream_resp.status_code == 200:
+        for line in stream_resp.iter_lines():
+            if line:
+                decoded = line.decode('utf-8')
+                if 'data: ' in decoded and 'token' in decoded:
+                    try:
+                        token = json.loads(decoded[6:])['token']
+                        full_dual += token
+                        print(token, end='', flush=True)
+                    except:
+                        pass
+        print(f"\n✔️ Dual Stream OK ({time.time()-t0:.2f}s) | Output: {full_dual[:80]}...")
+    else:
+        print(f"❌ Stream Dual: {stream_resp.status_code}")
+
+    print(f"\n📊 Final - RAM: {get_ram_memory()} | VRAM: {get_gpu_memory()}")
+    print("✅ DualFlow NUMA Stream Warm-up Complete! KVCache/Adapters ready.")
+
+if __name__ == '__main__':
+    warmup()
+

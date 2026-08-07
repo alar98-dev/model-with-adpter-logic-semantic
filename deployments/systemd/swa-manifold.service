@@ -1,0 +1,29 @@
+[Unit]
+Description=SWA Vector Manifold — embeddings reais (Gemma 270M) + índice SHM
+Documentation=file:///services/model-with-adpter-logic-semantic/deployments/README_BOOT.md
+Before=swa-auto.service
+After=network-online.target postgresql.service postgresql@17-main.service
+Wants=network-online.target
+ConditionPathExists=/services/model-with-adpter-logic-semantic/venv/bin/python3
+
+[Service]
+Type=oneshot
+User=alifer
+Group=alifer
+WorkingDirectory=/services/model-with-adpter-logic-semantic
+
+Environment=PYTHONUNBUFFERED=1
+Environment=SWA_PROJECT_ROOT=/services/model-with-adpter-logic-semantic
+Environment=SWA_REAL_EMBEDDINGS=1
+Environment=VECTORIZER_MODEL_DIR=models/gemma-3-270m
+Environment=GEMMA_DEVICE=cpu
+
+ExecStart=/services/model-with-adpter-logic-semantic/venv/bin/python3 /services/model-with-adpter-logic-semantic/scripts/rebuild_vector_reality.py --skip-if-real
+RemainAfterExit=yes
+TimeoutStartSec=3600
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=swa-manifold
+
+[Install]
+WantedBy=multi-user.target

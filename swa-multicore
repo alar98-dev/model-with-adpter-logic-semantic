@@ -1,0 +1,32 @@
+#!/bin/bash
+# SWA Multicore Configuration Script
+# AGGRESSIVE maximum parallel processing for organic AI
+
+echo "🚀 AGGRESSIVE SWA Multicore Configuration..."
+
+# Force maximum core usage
+PHYSICAL_CORES=$(nproc --all 2>/dev/null || echo 10)
+LOGICAL_CORES=$(nproc 2>/dev/null || echo 12)
+
+echo "🧠 Detected: $PHYSICAL_CORES physical cores, $LOGICAL_CORES logical cores"
+
+# STABLE parallelization - 4 for P-cores on i5-120U + vacuum
+export OMP_NUM_THREADS=4
+export MKL_NUM_THREADS=4
+export TORCH_NUM_THREADS=4
+export NUMEXPR_NUM_THREADS=4
+export VECLIB_MAXIMUM_THREADS=4
+export MKL_THREADING_LAYER=SEQUENTIAL
+export MKL_ENABLE_INSTRUCTIONS=AVX2
+export KMP_AFFINITY=granularity=fine,compact,1,0
+export CUDA_VISIBLE_DEVICES=""  # Force CPU-only for consistency
+
+echo "⚡ AGGRESSIVE Environment configured for $PHYSICAL_CORES cores:"
+echo "  OMP_NUM_THREADS=$OMP_NUM_THREADS"
+echo "  MKL_NUM_THREADS=$MKL_NUM_THREADS"
+echo "  TORCH_NUM_THREADS=$TORCH_NUM_THREADS"
+echo "  KMP_AFFINITY=$KMP_AFFINITY"
+
+# Execute with taskset to force all cores
+echo "🎯 Executing with ALL cores forced: $@"
+exec taskset -c 0-$((PHYSICAL_CORES-1)) "$@"

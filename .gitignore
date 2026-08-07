@@ -1,0 +1,46 @@
+# ── Pesos / modelos / venv ──────────────────────────────
+models/
+venv/
+*.pkl
+*.pt
+*.ckpt
+*.bin
+*.onnx
+
+# ── Runtime / estado volátil ────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.log
+*.jsonl
+*.key
+*.tmp
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Artefatos gerados pelo organismo ────────────────────
+logs/
+data/
+build_context/
+input_frames/
+action_synapses.json
+dataset_sinapses.json
+swa_kernel_knowledge.json
+swa_kernel_knowledge_fractal.json
+monitors.json
+USER_INPUT.txt
+speaker_signatures.json
+action_svm_model.pkl
+bladetools_sensory_map.pkl
+
+# ── Segredos / ambiente ─────────────────────────────────
+.env
+.env.*
+!*.env.example
+*.secret
+
+# ── Backups e misc ──────────────────────────────────────
+*.orig
+backups/

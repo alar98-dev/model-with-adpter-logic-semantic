@@ -1,0 +1,6 @@
+{
+  "cultures": [
+    {"name": "Mnemosyne", "role": "Memory", "enabled": true, "path": "swa/agents/mnemosyne.py"},
+    {"name": "ThermaWatcher", "role": "Physiology", "enabled": true, "path": "swa/agents/therma_watcher.py"}
+  ]
+}

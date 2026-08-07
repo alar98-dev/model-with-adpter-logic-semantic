@@ -1,0 +1,6 @@
+#!/bin/bash
+# SWA Command Wrapper
+# Allows running 'swa' command from anywhere
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PYTHONPATH="$SCRIPT_DIR" python3 "$SCRIPT_DIR/main.py" "$@"

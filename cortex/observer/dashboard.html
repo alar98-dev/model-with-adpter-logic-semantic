@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWA-Aeon — Observatório Unificado</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0e17; color: #c8d6e5; font-family: 'Segoe UI', monospace; min-height: 100vh; overflow: hidden; }
+        
+        .header {
+            background: linear-gradient(135deg, #0d1321 0%, #1a1a2e 100%);
+            border-bottom: 1px solid #1e3a5f;
+            padding: 16px 24px;
+            display: flex; align-items: center; justify-content: space-between;
+            height: 60px;
+        }
+        .header h1 { font-size: 18px; color: #00d4ff; font-weight: 600; letter-spacing: 1px; display: flex; align-items: center; gap: 10px; }
+        .header .status { font-size: 12px; color: #00ff88; padding: 4px 8px; background: rgba(0, 255, 136, 0.1); border-radius: 4px; border: 1px solid rgba(0,255,136,0.3); animation: pulse 2s infinite; }
+        .header .nav { display: flex; gap: 16px; }
+        .header .nav a { color: #5a7a9a; text-decoration: none; font-size: 13px; padding: 6px 12px; border-radius: 4px; transition: all 0.2s; }
+        .header .nav a:hover, .header .nav a.active { color: #00d4ff; background: rgba(0,212,255,0.1); }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            grid-template-rows: calc(100vh - 60px);
+            gap: 1px;
+            background: #1e3a5f; /* Linhas divisórias */
+        }
+
+        .panel {
+            background: #0a0e17;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #161b22;
+            font-size: 13px;
+            color: #5a7a9a;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: #0d1117;
+            display: flex; justify-content: space-between;
+        }
+
+        .panel-content {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        /* PERCEPÇÃO (ESQUERDA) */
+        .vision-feed {
+            background: #000;
+            border: 1px solid #1e3a5f;
+            border-radius: 6px;
+            height: 200px;
+            display: flex; align-items: center; justify-content: center;
+            color: #3a4a5a;
+            font-size: 12px;
+            margin-bottom: 16px;
+            position: relative;
+        }
+        .presence-card {
+            padding: 12px;
+            border-left: 3px solid #00d4ff;
+            background: #161b22;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+            display: none;
+        }
+        .presence-card.active { display: block; }
+        .p-name { color: #00d4ff; font-weight: bold; font-size: 14px; }
+        .p-meta { color: #5a7a9a; font-size: 11px; margin-top: 4px; }
+
+        /* COGNIÇÃO (CENTRO) */
+        #matrixCanvas {
+            width: 100%;
+            height: 100%;
+            filter: contrast(1.5) saturate(2.5) blur(2px);
+            box-shadow: inset 0 0 50px rgba(0,0,0,1);
+            background: #000;
+        }
+        .matrix-container { padding: 0; position: relative; }
+        .matrix-overlay { position: absolute; top: 10px; left: 10px; color: rgba(0, 212, 255, 0.5); font-size: 11px; pointer-events: none; }
+
+        /* AÇÃO & LOGS (DIREITA) */
+        .terminal {
+            background: #000;
+            border: 1px solid #1e3a5f;
+            border-radius: 6px;
+            flex: 1;
+            padding: 10px;
+            font-size: 11px;
+            color: #a9b7c6;
+            overflow-y: auto;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .log-entry { padding: 4px 0; border-bottom: 1px dashed #161b22; }
+        .log-entry .time { color: #5a7a9a; margin-right: 8px; }
+
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>SWA-AEON <span class="status">● SSE ONLINE</span></h1>
+        <div class="nav">
+            <a href="/dashboard" class="active">Observatório</a>
+            <a href="/">Matriz Pura</a>
+            <a href="/shell">Shell 3D</a>
+            <a href="/mycelium">Rede Micelial</a>
+            <a href="/identities">Identidades</a>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        
+        <!-- PILAR 1: PERCEPÇÃO -->
+        <div class="panel">
+            <div class="panel-header">Percepção Sensorial</div>
+            <div class="panel-content">
+                <div class="vision-feed" id="vision-feed">
+                    <div style="position:absolute; top:10px; left:10px; color:#5a7a9a;">CÂMERA / VISÃO</div>
+                    <span id="vision-status">Aguardando feed...</span>
+                </div>
+                
+                <div style="font-size: 11px; color: #5a7a9a; margin-bottom: 8px; text-transform: uppercase;">Presença Atual</div>
+                <div class="presence-card" id="presence-card">
+                    <div class="p-name" id="presence-name">Desconhecido</div>
+                    <div class="p-meta" id="presence-meta">Confiança: --%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PILAR 2: COGNIÇÃO -->
+        <div class="panel matrix-container">
+            <div class="panel-header" style="position: absolute; top:0; left:0; width:100%; z-index:10; background: rgba(13, 17, 23, 0.8);">Espaço Latente (Caos)</div>
+            <div class="matrix-overlay">
+                DIM: 4096<br>
+                RENDER: 64x64 LERP
+            </div>
+            <canvas id="matrixCanvas"></canvas>
+        </div>
+
+        <!-- PILAR 3: AÇÃO & OODA LOOP -->
+        <div class="panel">
+            <div class="panel-header">Log de Ações (OODA)</div>
+            <div class="panel-content" style="display:flex; flex-direction:column;">
+                <div class="terminal" id="ooda-terminal">
+                    <!-- Logs entram aqui -->
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- LÓGICA DA MATRIX (Canvas) ---
+        const canvas = document.getElementById('matrixCanvas');
+        const ctx = canvas.getContext('2d');
+        let targetArray = new Float32Array(4096);
+        let currentArray = new Float32Array(4096);
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        // Delay inicial para pegar tamanho real
+        setTimeout(resizeCanvas, 100);
+
+        function updateTargetMatrix(base64Data) {
+            if (!base64Data) return;
+            const binaryString = atob(base64Data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) { bytes[i] = binaryString.charCodeAt(i); }
+            const floatArray = new Float32Array(bytes.buffer);
+            if(floatArray.length === 4096) targetArray = floatArray;
+        }
+
+        function drawOrganicLoop() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.15)"; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const timeBreath = Math.sin(Date.now() * 0.0015) * 0.08;
+            const cellW = canvas.width / 64;
+            const cellH = canvas.height / 64;
+
+            for(let r=0; r<64; r++) {
+                for(let c=0; c<64; c++) {
+                    const i = r * 64 + c;
+                    currentArray[i] += (targetArray[i] - currentArray[i]) * 0.08; // LERP
+                    let val = currentArray[i];
+                    let energy = Math.abs(val) + timeBreath;
+                    const normalizedEnergy = Math.min(1.0, Math.max(0, energy / 1.5));
+                    
+                    if (val < 0) ctx.fillStyle = `rgba(0, ${Math.floor(255 * normalizedEnergy)}, 255, ${normalizedEnergy + 0.1})`;
+                    else ctx.fillStyle = `rgba(255, ${Math.floor(100 * normalizedEnergy)}, 0, ${normalizedEnergy + 0.1})`;
+                    
+                    ctx.fillRect(c * cellW, r * cellH, cellW + 1, cellH + 1);
+                }
+            }
+            requestAnimationFrame(drawOrganicLoop);
+        }
+        drawOrganicLoop();
+
+        // --- SERVER-SENT EVENTS (SSE) ---
+        const eventSource = new EventSource('/api/event-stream');
+        
+        eventSource.addEventListener('matrix_update', (e) => {
+            const data = JSON.parse(e.data);
+            if (data.chaos_matrix) updateTargetMatrix(data.chaos_matrix);
+        });
+
+        eventSource.addEventListener('presence_change', (e) => {
+            const data = JSON.parse(e.data);
+            const card = document.getElementById('presence-card');
+            const feed = document.getElementById('vision-status');
+            
+            if (data.identities && data.identities.length > 0) {
+                const id = data.identities[0];
+                document.getElementById('presence-name').textContent = id.name || 'Desconhecido';
+                document.getElementById('presence-meta').textContent = `Confiança: ${((id.confidence || 0) * 100).toFixed(1)}% | ${id.angle || ''}`;
+                card.classList.add('active');
+                feed.innerHTML = '<span style="color:#00ff88;">[ALVO DETECTADO NO VETOR]</span>';
+                feed.style.color = '#00ff88';
+                document.getElementById('vision-feed').style.borderColor = '#00ff88';
+            } else {
+                card.classList.remove('active');
+                feed.textContent = 'Aguardando feed...';
+                feed.style.color = '#3a4a5a';
+                document.getElementById('vision-feed').style.borderColor = '#1e3a5f';
+            }
+        });
+
+        eventSource.addEventListener('ooda_log', (e) => {
+            const data = JSON.parse(e.data);
+            const terminal = document.getElementById('ooda-terminal');
+            if (data.diary && data.diary.length > 0) {
+                terminal.innerHTML = data.diary.map(line => `<div class="log-entry">${line}</div>`).join('');
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+        });
+
+        eventSource.onerror = () => {
+            document.querySelector('.status').textContent = '● RECONECTANDO...';
+            document.querySelector('.status').style.color = '#ff922b';
+            document.querySelector('.status').style.borderColor = 'rgba(255,146,43,0.3)';
+            document.querySelector('.status').style.background = 'rgba(255,146,43,0.1)';
+        };
+
+        eventSource.onopen = () => {
+            document.querySelector('.status').textContent = '● SSE ONLINE';
+            document.querySelector('.status').style.color = '#00ff88';
+            document.querySelector('.status').style.borderColor = 'rgba(0,255,136,0.3)';
+            document.querySelector('.status').style.background = 'rgba(0,255,136,0.1)';
+        };
+
+    </script>
+</body>
+</html>

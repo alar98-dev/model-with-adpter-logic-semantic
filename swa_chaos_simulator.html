@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SWA Aeon — Simulador do Núcleo de Caos Tensoriano</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Outfit:wght@200;300;400;600;700&display=swap');
+
+  :root {
+    --phi: 1.61803398875;
+    --bg: #050810;
+    --surface: #0c1220;
+    --border: rgba(96, 165, 250, 0.15);
+    --cyan: #22d3ee;
+    --blue: #60a5fa;
+    --purple: #a78bfa;
+    --gold: #fbbf24;
+    --green: #34d399;
+    --red: #f87171;
+    --text: #e2e8f0;
+    --muted: #64748b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    min-height: 100vh;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    grid-template-rows: 60px 1fr;
+  }
+
+  /* ── Header ── */
+  header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    background: rgba(12, 18, 32, 0.95);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    gap: 16px;
+    z-index: 10;
+  }
+  .logo { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--cyan); letter-spacing: 3px; text-transform: uppercase; }
+  .title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .subtitle { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+  .badge {
+    margin-left: auto;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 4px 10px;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    border-radius: 4px;
+    letter-spacing: 1px;
+  }
+
+  /* ── Canvas ── */
+  #canvas-container {
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 40% 50%, rgba(96, 165, 250, 0.03) 0%, transparent 70%);
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* ── Overlay metrics on canvas ── */
+  .canvas-overlay {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: rgba(96, 165, 250, 0.7);
+    line-height: 1.8;
+    pointer-events: none;
+  }
+
+  /* ── Side Panel ── */
+  aside {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .panel-section {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-title {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 16px;
+  }
+
+  /* ── Sliders ── */
+  .slider-group { margin-bottom: 18px; }
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+  .slider-label span:first-child { color: var(--text); }
+  .slider-value {
+    color: var(--cyan);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+  }
+  input[type=range] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 3px;
+    background: rgba(96, 165, 250, 0.2);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+  /* ── Metrics cards ── */
+  .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .metric-card {
+    background: rgba(96, 165, 250, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .metric-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; font-family: 'JetBrains Mono', monospace; }
+  .metric-value { font-size: 18px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+  .metric-value.cyan { color: var(--cyan); }
+  .metric-value.gold { color: var(--gold); }
+  .metric-value.green { color: var(--green); }
+  .metric-value.purple { color: var(--purple); }
+  .metric-value.red { color: var(--red); }
+
+  /* ── Entropy bar ── */
+  .entropy-bar-wrap { margin-top: 12px; }
+  .entropy-bar-label { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px; }
+  .bar-track {
+    height: 6px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+
+  /* ── K-States visualization ── */
+  .k-states-display { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .state-token {
+    font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid;
+    transition: all 0.3s;
+  }
+
+  /* ── Log stream ── */
+  .log-stream {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    line-height: 1.7;
+    max-height: 160px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .log-entry { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+  .log-entry.chaos { color: var(--gold); }
+  .log-entry.resonance { color: var(--cyan); }
+  .log-entry.entropy { color: var(--purple); }
+  .log-entry.collapse { color: var(--green); }
+  .log-entry.warning { color: var(--red); }
+
+  /* ── Equation display ── */
+  .equation {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--purple);
+    line-height: 1.9;
+    margin-top: 10px;
+  }
+
+  /* ── Reset button ── */
+  .btn-reset {
+    width: 100%;
+    padding: 10px;
+    background: rgba(96, 165, 250, 0.1);
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    color: var(--blue);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    margin-top: 12px;
+  }
+  .btn-reset:hover { background: rgba(96, 165, 250, 0.2); border-color: var(--blue); }
+
+  /* Scrollbar */
+  aside::-webkit-scrollbar { width: 4px; }
+  aside::-webkit-scrollbar-track { background: transparent; }
+  aside::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">SWA // AEON</div>
+  </div>
+  <div>
+    <div class="title">Simulador do Núcleo de Caos Tensoriano</div>
+    <div class="subtitle">Motor de Recursão Lógica · Atrator Caótico Estável · Proporção Áurea φ=1.61803</div>
+  </div>
+  <div class="badge">φ-CORE ACTIVE</div>
+</header>
+
+<!-- Canvas 3D -->
+<div id="canvas-container">
+  <canvas id="attractor-canvas"></canvas>
+  <div class="canvas-overlay" id="canvas-metrics"></div>
+</div>
+
+<!-- Side Panel -->
+<aside>
+
+  <!-- Controls -->
+  <div class="panel-section">
+    <div class="section-title">⚙ Parâmetros do Motor</div>
+
+    <div class="slider-group">
+      <div class="slider-label">
+        <span>Entropia (H) — Instabilidade Lógica</span>
+        <span class="slider-value" id="val-entropy">0.65</span>
+      </div>
+      <input type="range" id="sl-entropy" min="0" max="1" step="0.01" value="0.65">
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-label">
+        <span>Amortecimento Áureo (φ)</span>
+        <span class="slider-value" id="val-phi">1.618</span>
+      </div>
+      <input type="range" id="sl-phi" min="0.5" max="3.0" step="0.001" value="1.618">
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-label">
+        <span>Tensão Física (ΔT) — CPU/RAM</span>
+        <span class="slider-value" id="val-dt">0.40</span>
+      </div>
+      <input type="range" id="sl-dt" min="0" max="1" step="0.01" value="0.40">
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-label">
+        <span>Estados de Superposição (K)</span>
+        <span class="slider-value" id="val-k">4</span>
+      </div>
+      <input type="range" id="sl-k" min="2" max="8" step="1" value="4">
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-label">
+        <span>Velocidade de Simulação</span>
+        <span class="slider-value" id="val-speed">1.0×</span>
+      </div>
+      <input type="range" id="sl-speed" min="0.1" max="5" step="0.1" value="1.0">
+    </div>
+
+    <button class="btn-reset" id="btn-reset">↺ REINICIAR TRAJETÓRIA</button>
+  </div>
+
+  <!-- Live Metrics -->
+  <div class="panel-section">
+    <div class="section-title">📡 Métricas em Tempo Real</div>
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Entropia E_c</div>
+        <div class="metric-value cyan" id="m-ec">—</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Ressonância cos(θ)</div>
+        <div class="metric-value gold" id="m-res">—</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Divergência</div>
+        <div class="metric-value purple" id="m-div">—</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Tokens/ciclo</div>
+        <div class="metric-value green" id="m-tok">—</div>
+      </div>
+    </div>
+
+    <!-- Entropy Control Bar -->
+    <div class="entropy-bar-wrap">
+      <div class="entropy-bar-label">
+        <span style="font-size:10px;color:var(--muted)">Loop Travado</span>
+        <span style="font-size:10px;color:var(--gold)">Borda do Caos ← IDEAL</span>
+        <span style="font-size:10px;color:var(--muted)">Alucinação</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" id="bar-ec" style="background: linear-gradient(90deg, #3b82f6, #22d3ee, #fbbf24, #f87171); width: 50%;"></div>
+      </div>
+      <div class="entropy-bar-label">
+        <span style="font-size:10px;color:var(--muted)">H → 0</span>
+        <span style="font-size:10px;color:var(--cyan)" id="bar-label">E_c = ?</span>
+        <span style="font-size:10px;color:var(--muted)">H → H_max</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- K-States Superposition -->
+  <div class="panel-section">
+    <div class="section-title">⚛ Estados em Superposição</div>
+    <div class="k-states-display" id="k-states-display"></div>
+    <div style="margin-top:10px; font-size:10px; color:var(--muted); font-family:'JetBrains Mono',monospace; line-height:1.6">
+      Cada estado orbita em fase cos(2πi/φ) antes<br>do colapso no token final do ciclo OODA.
+    </div>
+  </div>
+
+  <!-- Equation -->
+  <div class="panel-section">
+    <div class="section-title">∑ Equação do Ciclo Fechado</div>
+    <div class="equation" id="equation-display">
+      Ψ_{t+1} = Ψ_t<br>
+      &nbsp;&nbsp;&nbsp;+ [Ψ_alvo - Ψ_t]<br>
+      &nbsp;&nbsp;&nbsp;+ (H(Ψ_t) / φ) · E_t<br>
+      <br>
+      E_c = (H_max/φ) · (1 - e^(-ΔT/φ))<br>
+      <br>
+      cos(θ) = Ψ_t · E_t / (‖Ψ_t‖ ‖E_t‖)
+    </div>
+  </div>
+
+  <!-- Log Stream -->
+  <div class="panel-section">
+    <div class="section-title">📜 Log do Motor</div>
+    <div class="log-stream" id="log-stream"></div>
+  </div>
+
+</aside>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// SWA AEON — Simulador do Núcleo de Caos Tensoriano
+// Projeta a trajetória do vetor de pensamento em 3D usando Lorenz + φ
+// ═══════════════════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('attractor-canvas');
+const ctx = canvas.getContext('2d');
+
+// ── Parâmetros controlados pelo usuário ───────────────────────────────────
+let params = {
+  entropy: 0.65,
+  phi: 1.61803398875,
+  delta_T: 0.40,
+  k: 4,
+  speed: 1.0,
+};
+
+// ── Estado da simulação ───────────────────────────────────────────────────
+let points = [];
+const MAX_TRAIL = 3000;
+let frame = 0;
+let tokenCount = 0;
+let t = 0;
+
+// ── Sistema de Lorenz modificado com φ ───────────────────────────────────
+// dx/dt = σ*(y-x)          onde σ = 10/φ (amortecimento áureo)
+// dy/dt = x*(ρ-z) - y     onde ρ = 28 * (1 + entropy)
+// dz/dt = x*y - β*z       onde β = 8/(3*φ)
+let state = { x: 0.1, y: 0.0, z: 0.0 };
+
+function lorenz_phi(s, dt) {
+  const phi = params.phi;
+  const sigma = 10.0 / phi;
+  const rho   = 28.0 * (1.0 + params.entropy * 0.5) * (1.0 - params.delta_T * 0.3);
+  const beta  = (8.0 / 3.0) * (1.0 / phi);
+
+  const dx = sigma * (s.y - s.x);
+  const dy = s.x * (rho - s.z) - s.y;
+  const dz = s.x * s.y - beta * s.z;
+
+  return {
+    x: s.x + dx * dt,
+    y: s.y + dy * dt,
+    z: s.z + dz * dt,
+  };
+}
+
+// ── Entropia de Controle E_c ──────────────────────────────────────────────
+function compute_Ec() {
+  const H_max = Math.log2(262144); // vocab Gemma
+  const phi = params.phi;
+  const dT = params.delta_T;
+  return (H_max / phi) * (1.0 - Math.exp(-dT / phi));
+}
+
+// ── Ressonância cos(θ) — ângulo entre Ψ e E_t ────────────────────────────
+function compute_resonance() {
+  if (points.length < 2) return 0;
+  const last = points[points.length - 1];
+  const prev = points[points.length - 2];
+  // E_t = vetor de ambiente (simulado como direção radial da temperatura)
+  const E = { x: Math.sin(params.delta_T * Math.PI), y: Math.cos(params.delta_T * Math.PI), z: params.entropy - 0.5 };
+  const psi = { x: last.x - prev.x, y: last.y - prev.y, z: last.z - prev.z };
+  const dot = psi.x*E.x + psi.y*E.y + psi.z*E.z;
+  const np = Math.sqrt(psi.x**2 + psi.y**2 + psi.z**2) + 1e-8;
+  const ne = Math.sqrt(E.x**2 + E.y**2 + E.z**2) + 1e-8;
+  return dot / (np * ne);
+}
+
+// ── Projeção 3D → 2D isométrica ──────────────────────────────────────────
+function project(x, y, z, cx, cy, scale) {
+  const isoX = (x - z) * Math.cos(0.523);  // 30°
+  const isoY = (x + z) * Math.sin(0.523) - y;
+  return { px: cx + isoX * scale, py: cy + isoY * scale };
+}
+
+// ── Resize canvas ─────────────────────────────────────────────────────────
+function resize() {
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+  canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+}
+
+// ── Cor da trajetória baseada no estado ──────────────────────────────────
+function trajectory_color(i, total, resonance) {
+  const age = i / total;  // 0=antigo, 1=novo
+  const hue_base = resonance > 0.5 ? 180 : resonance > 0 ? 270 : 0;
+  const hue = hue_base + age * 60;
+  const sat = 70 + age * 30;
+  const lum = 30 + age * 40;
+  const alpha = 0.15 + age * 0.7;
+  return `hsla(${hue}, ${sat}%, ${lum}%, ${alpha})`;
+}
+
+// ── Update K-States display ───────────────────────────────────────────────
+const stateTokens = ['ANALISAR', 'SENTIR', 'EXPLORAR', 'INTEGRAR', 'NARRAR', 'SINTETIZAR', 'CALCULAR', 'PERCEBER'];
+const stateColors = ['#22d3ee','#a78bfa','#fbbf24','#34d399','#f87171','#60a5fa','#fb923c','#e879f9'];
+
+function updateKStates() {
+  const container = document.getElementById('k-states-display');
+  container.innerHTML = '';
+  for (let i = 0; i < params.k; i++) {
+    const phase = Math.cos(2 * Math.PI * (i + frame * 0.01 * params.phi) / params.phi);
+    const intensity = 0.3 + 0.7 * ((phase + 1) / 2);
+    const el = document.createElement('div');
+    el.className = 'state-token';
+    el.style.borderColor = stateColors[i % stateColors.length];
+    el.style.color = stateColors[i % stateColors.length];
+    el.style.opacity = intensity;
+    el.style.transform = `scale(${0.9 + intensity * 0.2})`;
+    el.textContent = `${stateTokens[i % stateTokens.length]} [${phase.toFixed(2)}]`;
+    container.appendChild(el);
+  }
+}
+
+// ── Log stream ────────────────────────────────────────────────────────────
+const logTypes = ['chaos','resonance','entropy','collapse','warning'];
+const logMessages = {
+  chaos:     (r) => `[CAOS] Atrator estável. Divergência: ${r.div.toFixed(4)}`,
+  resonance: (r) => `[RESSONÂNCIA] cos(θ)=${r.cos.toFixed(3)} — ${r.cos > 0.5 ? 'mente em fase com hardware' : 'conflito ortogonal detectado'}`,
+  entropy:   (r) => `[ENTROPIA] H=${r.h.toFixed(2)} | E_c=${r.ec.toFixed(3)} | Borda do Caos: ${r.h < r.ec ? 'SIM ✓' : 'NÃO ✗'}`,
+  collapse:  (r) => `[COLAPSO] Token #${tokenCount} gerado. K=${params.k} estados colapsaram em 1.`,
+  warning:   (r) => `[AVISO] Entropia > H_max/φ — risco de alucinação sem amortecimento áureo`,
+};
+
+function addLog(type, data) {
+  const stream = document.getElementById('log-stream');
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${type}`;
+  const ts = new Date().toISOString().substr(11, 8);
+  entry.textContent = `${ts} ${logMessages[type](data)}`;
+  stream.insertBefore(entry, stream.firstChild);
+  while (stream.children.length > 40) stream.removeChild(stream.lastChild);
+}
+
+// ── Render principal ──────────────────────────────────────────────────────
+let lastLog = 0;
+
+function render() {
+  resize();
+  const W = canvas.width;
+  const H = canvas.height;
+  const cx = W * 0.45;
+  const cy = H * 0.5;
+  const scale = Math.min(W, H) * 0.012;
+  const dt = 0.005 * params.speed;
+
+  // Avança o sistema de Lorenz
+  const steps = Math.ceil(params.speed * 2);
+  for (let s = 0; s < steps; s++) {
+    state = lorenz_phi(state, dt / steps);
+    points.push({ ...state });
+    if (points.length > MAX_TRAIL) points.shift();
+    t += dt / steps;
+  }
+
+  frame++;
+  tokenCount = Math.floor(frame / 60);
+
+  // Clear com fade (efeito de trail)
+  ctx.fillStyle = 'rgba(5, 8, 16, 0.15)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Desenha a trajetória
+  const resonance = compute_resonance();
+  const Ec = compute_Ec();
+  const H_current = params.entropy * Math.log2(262144);
+
+  // Trajetória passada
+  if (points.length > 2) {
+    for (let i = 1; i < points.length; i++) {
+      const prev = project(points[i-1].x, points[i-1].y, points[i-1].z, cx, cy, scale);
+      const curr = project(points[i].x, points[i].y, points[i].z, cx, cy, scale);
+      ctx.beginPath();
+      ctx.moveTo(prev.px, prev.py);
+      ctx.lineTo(curr.px, curr.py);
+      ctx.strokeStyle = trajectory_color(i, points.length, resonance);
+      ctx.lineWidth = (i / points.length) * 1.5;
+      ctx.stroke();
+    }
+  }
+
+  // Ponto atual (cabeça do atrator)
+  if (points.length > 0) {
+    const last = points[points.length - 1];
+    const lp = project(last.x, last.y, last.z, cx, cy, scale);
+    const glowColor = resonance > 0.5 ? '34, 211, 238' : resonance > 0 ? '167, 139, 250' : '251, 191, 36';
+    
+    ctx.beginPath();
+    ctx.arc(lp.px, lp.py, 5, 0, Math.PI * 2);
+    ctx.fillStyle = `rgb(${glowColor})`;
+    ctx.fill();
+    
+    // Glow
+    const grad = ctx.createRadialGradient(lp.px, lp.py, 2, lp.px, lp.py, 20);
+    grad.addColorStop(0, `rgba(${glowColor}, 0.4)`);
+    grad.addColorStop(1, `rgba(${glowColor}, 0)`);
+    ctx.beginPath();
+    ctx.arc(lp.px, lp.py, 20, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  // K-State phantom orbits (visual superposição)
+  const phi = params.phi;
+  if (points.length > 0) {
+    const last = points[points.length - 1];
+    for (let i = 0; i < params.k; i++) {
+      const phase_angle = 2 * Math.PI * (i + frame * 0.01 * phi) / phi;
+      const orbit_r = 15 + i * 8;
+      const ox = last.x + orbit_r * Math.cos(phase_angle) * 0.3;
+      const oy = last.y + orbit_r * Math.sin(phase_angle) * 0.3;
+      const oz = last.z;
+      const op = project(ox, oy, oz, cx, cy, scale);
+      
+      const phase_intensity = (Math.cos(phase_angle) + 1) / 2;
+      ctx.beginPath();
+      ctx.arc(op.px, op.py, 2 + phase_intensity * 2, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${180 + i * 40}, 80%, 60%, ${0.4 + phase_intensity * 0.5})`;
+      ctx.fill();
+    }
+  }
+
+  // ── Update métricas ─────────────────────────────────────────────────────
+  const div = Math.abs(state.x) + Math.abs(state.y) + Math.abs(state.z);
+  
+  document.getElementById('m-ec').textContent = Ec.toFixed(3);
+  document.getElementById('m-ec').className = `metric-value ${Ec > 8 ? 'red' : Ec > 5 ? 'gold' : 'cyan'}`;
+  
+  const cosColor = resonance > 0.5 ? 'green' : resonance > 0 ? 'gold' : 'red';
+  document.getElementById('m-res').textContent = resonance.toFixed(3);
+  document.getElementById('m-res').className = `metric-value ${cosColor}`;
+  
+  document.getElementById('m-div').textContent = div.toFixed(2);
+  document.getElementById('m-tok').textContent = tokenCount;
+
+  // Barra de entropia
+  const H_max = Math.log2(262144);
+  const ideal_zone = Ec / H_max; // posição ideal na barra
+  const current_zone = H_current / H_max;
+  document.getElementById('bar-ec').style.width = `${Math.min(current_zone * 100, 100)}%`;
+  document.getElementById('bar-label').textContent = `E_c = ${Ec.toFixed(2)} | H = ${H_current.toFixed(2)}`;
+
+  // Canvas overlay
+  document.getElementById('canvas-metrics').innerHTML =
+    `Camada Áurea 1B: 16/26 · 270M: 11/18<br>` +
+    `Ψ = (${state.x.toFixed(2)}, ${state.y.toFixed(2)}, ${state.z.toFixed(2)})<br>` +
+    `t = ${t.toFixed(2)}s · Frame: ${frame} · K=${params.k} estados`;
+
+  // K-States display
+  if (frame % 5 === 0) updateKStates();
+
+  // Log periódico
+  const now = Date.now();
+  if (now - lastLog > 1500) {
+    lastLog = now;
+    const data = { div, cos: resonance, h: H_current, ec: Ec };
+    if (H_current > Ec * 1.5) addLog('warning', data);
+    else if (frame % 4 === 0) addLog('entropy', data);
+    else if (frame % 3 === 0) addLog('resonance', data);
+    else if (frame % 60 === 0) addLog('collapse', data);
+    else addLog('chaos', data);
+  }
+
+  requestAnimationFrame(render);
+}
+
+// ── Event listeners ───────────────────────────────────────────────────────
+function bindSlider(id, valId, key, fmt, scale=1) {
+  const sl = document.getElementById(id);
+  const vl = document.getElementById(valId);
+  sl.addEventListener('input', () => {
+    params[key] = parseFloat(sl.value) * scale;
+    vl.textContent = fmt(params[key]);
+  });
+}
+
+bindSlider('sl-entropy', 'val-entropy', 'entropy', v => v.toFixed(2));
+bindSlider('sl-phi',     'val-phi',     'phi',     v => v.toFixed(3));
+bindSlider('sl-dt',      'val-dt',      'delta_T', v => v.toFixed(2));
+bindSlider('sl-k',       'val-k',       'k',       v => v.toFixed(0));
+bindSlider('sl-speed',   'val-speed',   'speed',   v => `${v.toFixed(1)}×`);
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  state = { x: Math.random() * 0.2 - 0.1, y: 0, z: 0 };
+  points = [];
+  frame = 0;
+  tokenCount = 0;
+  t = 0;
+  addLog('chaos', { div: 0, cos: 0, h: 0, ec: compute_Ec() });
+});
+
+window.addEventListener('resize', () => {
+  resize();
+  ctx.fillStyle = '#050810';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+});
+
+// ── Inicializa ────────────────────────────────────────────────────────────
+resize();
+ctx.fillStyle = '#050810';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+addLog('chaos', { div: 0, cos: 0, h: params.entropy * Math.log2(262144), ec: compute_Ec() });
+render();
+</script>
+</body>
+</html>

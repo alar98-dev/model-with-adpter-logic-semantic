@@ -1,0 +1,47 @@
+[Unit]
+Description=SWA Autonomous Orchestrator (OODA Loop - Gemma 1B Kernel)
+Documentation=file:///services/model-with-adpter-logic-semantic/deployments/README_BOOT.md
+After=network-online.target postgresql.service postgresql@17-main.service swa-mcp.service swa-subcortex.service swa-manifold.service
+Wants=network-online.target swa-subcortex.service swa-manifold.service
+
+[Service]
+Type=simple
+User=alifer
+Group=alifer
+
+RuntimeDirectory=aeon
+RuntimeDirectoryMode=0755
+
+WorkingDirectory=/services/model-with-adpter-logic-semantic
+ExecStart=/services/model-with-adpter-logic-semantic/venv/bin/python cortex/run.py --interactive --broadcast
+
+Restart=always
+RestartSec=10
+TimeoutStopSec=120
+
+# Arquitetura v2: 1B linguagem + política de zonas + manifold SHM (rebuild via swa-manifold.service)
+Environment=PYTHONUNBUFFERED=1
+Environment=SWA_PROJECT_ROOT=/services/model-with-adpter-logic-semantic
+Environment=MODEL_DIR=models/gemma-3-1b-it
+Environment=VECTORIZER_MODEL_DIR=models/gemma-3-270m
+Environment=GEMMA_DEVICE=cpu
+Environment=SWA_FORCE_CPU=true
+Environment=SWA_REAL_EMBEDDINGS=1
+Environment=SWA_REBUILD_MANIFOLD_ON_BOOT=0
+Environment=SWA_RUNTIME_REAL_EMBEDDINGS=0
+Environment=SWA_MAX_TRACKED_FILES=400
+Environment=SWA_REPETITION_PENALTY=1.18
+Environment=SWA_TOP_P=0.90
+Environment=SWA_ENTROPY_THRESHOLD=15.0
+Environment=GEMMA_BLAKE_GAMMA=0.5
+Environment=GEMMA_BLAKE_MAX_ENT=8.0
+Environment=SWA_K_STATES=4
+
+LimitNOFILE=8192
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=swa-auto
+
+[Install]
+WantedBy=multi-user.target

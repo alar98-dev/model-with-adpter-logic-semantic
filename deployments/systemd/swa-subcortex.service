@@ -1,0 +1,25 @@
+[Unit]
+Description=SWA Subcortex (Gemma 270M Visual/Sensory Module)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=alifer
+Group=alifer
+WorkingDirectory=/services/model-with-adpter-logic-semantic
+
+Environment=PYTHONUNBUFFERED=1
+Environment=MODEL_DIR=models/gemma-3-270m
+Environment=SWA_PROJECT_ROOT=/services/model-with-adpter-logic-semantic
+
+ExecStart=/services/model-with-adpter-logic-semantic/venv/bin/python sensors/subcortex.py
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=swa-subcortex
+
+[Install]
+WantedBy=multi-user.target

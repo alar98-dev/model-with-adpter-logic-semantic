@@ -1,0 +1,33 @@
+{
+  "model_dir": "models/gemma-3-4-b",
+  "gemma_runtime": {
+    "gemma_version": "gemma-3-4-b"
+  },
+  "runtime": {
+    "transformers": "5.8.1",
+    "tokenizers": "0.22.2",
+    "sentencepiece_installed": true,
+    "torch": "2.5.1+cu124",
+    "bitsandbytes": "0.43.3"
+  },
+  "tokenizer": {
+    "tokenizer_json_exists": true,
+    "tokenizer_json_size_bytes": 33384568,
+    "declared_model_type": "BPE",
+    "schema_version": "1.0",
+    "keys_present": {
+      "model": true,
+      "normalizer": true,
+      "pre_tokenizer": true,
+      "post_processor": true,
+      "decoder": true
+    },
+    "parse_error": null
+  },
+  "capabilities": {
+    "fast_supported": null,
+    "slow_supported": null,
+    "xpu_support": null,
+    "quantization_support": "4bit"
+  }
+}

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AeonKernel - Representação Latente Pura</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #matrixCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            filter: contrast(1.5) saturate(2.5) blur(3px);
+            box-shadow: inset 0 0 100px rgba(0, 0, 0, 1.0);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrixCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('matrixCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let targetArray = new Float32Array(4096);
+        let currentArray = new Float32Array(4096);
+        
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+        
+        function updateTargetMatrix(base64Data) {
+            if (!base64Data) return;
+            const binaryString = atob(base64Data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const floatArray = new Float32Array(bytes.buffer);
+            if(floatArray.length === 4096) {
+                targetArray = floatArray;
+            }
+        }
+
+        function drawOrganicLoop() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.08)"; // Motion blur mais lento para rastro orgânico
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const timeBreath = Math.sin(Date.now() * 0.0015) * 0.08; // Respiração mais profunda
+
+            const cellW = canvas.width / 64;
+            const cellH = canvas.height / 64;
+
+            for(let r=0; r<64; r++) {
+                for(let c=0; c<64; c++) {
+                    const i = r * 64 + c;
+                    
+                    // LERP suave
+                    currentArray[i] += (targetArray[i] - currentArray[i]) * 0.05;
+                    
+                    let val = currentArray[i];
+                    let energy = Math.abs(val) + timeBreath;
+                    
+                    const normalizedEnergy = Math.min(1.0, Math.max(0, energy / 1.5));
+                    
+                    if (val < 0) {
+                        ctx.fillStyle = `rgba(0, ${Math.floor(255 * normalizedEnergy)}, 255, ${normalizedEnergy + 0.05})`;
+                    } else {
+                        ctx.fillStyle = `rgba(255, ${Math.floor(100 * normalizedEnergy)}, 0, ${normalizedEnergy + 0.05})`;
+                    }
+                    
+                    // Sobreposição mínima para não ter frestas pretas
+                    ctx.fillRect(c * cellW, r * cellH, cellW + 1, cellH + 1);
+                }
+            }
+            requestAnimationFrame(drawOrganicLoop);
+        }
+
+        const eventSource = new EventSource('/api/event-stream');
+        eventSource.addEventListener('matrix_update', (e) => {
+            const data = JSON.parse(e.data);
+            if(data.chaos_matrix) {
+                updateTargetMatrix(data.chaos_matrix);
+            }
+        });
+
+        // Roda a renderização orgânica fluida a 60 FPS ininterruptos
+        drawOrganicLoop();
+    </script>
+</body>
+</html>

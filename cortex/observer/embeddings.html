@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWA-Aeon — Embedding Space 3D</title>
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0e17; color: #c8d6e5; font-family: 'Segoe UI', monospace; height: 100vh; display: flex; flex-direction: column; }
+        
+        .header {
+            background: linear-gradient(135deg, #0d1321 0%, #1a1a2e 100%);
+            border-bottom: 1px solid #1e3a5f;
+            padding: 12px 24px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .header h1 { font-size: 16px; color: #00d4ff; font-weight: 600; letter-spacing: 1px; }
+        .header .nav { display: flex; gap: 12px; }
+        .header .nav a { color: #5a7a9a; text-decoration: none; font-size: 12px; padding: 5px 10px; border-radius: 4px; transition: all 0.2s; }
+        .header .nav a:hover, .header .nav a.active { color: #00d4ff; background: rgba(0,212,255,0.1); }
+
+        .main { flex: 1; display: flex; overflow: hidden; }
+
+        #plot3d { flex: 1; }
+
+        .sidebar {
+            width: 280px; background: #0d1117; border-left: 1px solid #1e3a5f;
+            padding: 16px; overflow-y: auto;
+        }
+        .sidebar h3 { font-size: 13px; color: #5a7a9a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #161b22; font-size: 13px; }
+        .stat-label { color: #5a7a9a; }
+        .stat-value { color: #00d4ff; font-weight: 500; }
+
+        .legend-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 12px; }
+        .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .legend-name { color: #c8d6e5; }
+        .legend-count { color: #5a7a9a; font-size: 11px; }
+
+        .controls { margin-top: 16px; }
+        .controls label { font-size: 11px; color: #5a7a9a; display: block; margin-bottom: 4px; }
+        .controls select, .controls input[type="range"] {
+            width: 100%; padding: 6px; background: #161b22; border: 1px solid #1e3a5f;
+            border-radius: 4px; color: #c8d6e5; font-size: 12px;
+        }
+
+        .method-badge {
+            display: inline-block; padding: 3px 8px; border-radius: 10px;
+            background: rgba(0,212,255,0.1); color: #00d4ff; border: 1px solid rgba(0,212,255,0.2);
+            font-size: 10px; margin-top: 4px;
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>EMBEDDING SPACE — PROJEÇÃO 3D</h1>
+        <div class="nav">
+            <a href="/">Matriz</a>
+            <a href="/shell">Shell 3D</a>
+            <a href="/identities">Identidades</a>
+            <a href="/embeddings" class="active">Embeddings</a>
+            <a href="/calibrate">Calibrar</a>
+            <a href="/cardiac">Cardíaco</a>
+        </div>
+    </div>
+
+    <div class="main">
+        <div id="plot3d"></div>
+
+        <div class="sidebar">
+            <h3>Métricas</h3>
+            <div class="stat-row">
+                <span class="stat-label">Método</span>
+                <span class="stat-value" id="method">—</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Total Embeddings</span>
+                <span class="stat-value" id="total-embeddings">—</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Identidades</span>
+                <span class="stat-value" id="total-identities">—</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Dimensão Original</span>
+                <span class="stat-value">128D</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Variância Explicada</span>
+                <span class="stat-value" id="variance">—</span>
+            </div>
+
+            <h3 style="margin-top:20px">Identidades</h3>
+            <div id="legend"></div>
+
+            <div class="controls">
+                <h3 style="margin-top:16px">Controles</h3>
+                <label>Modo de Cores</label>
+                <select id="color-mode" onchange="refresh()">
+                    <option value="identity">Por Identidade</option>
+                    <option value="angle">Por Ângulo</option>
+                </select>
+
+                <label style="margin-top:10px">Tamanho dos Pontos</label>
+                <input type="range" id="point-size" min="4" max="30" value="12" oninput="refresh()">
+
+                <label style="margin-top:10px">Auto-Rotação</label>
+                <select id="auto-rotate" onchange="toggleRotate()">
+                    <option value="true">Ativada</option>
+                    <option value="false">Desativada</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let data3d = null;
+
+        const ANGLE_COLORS = {
+            "front": "#00d4ff",
+            "left": "#ff6b6b",
+            "right": "#51cf66"
+        };
+
+        async function loadData() {
+            try {
+                const r = await fetch('/api/embeddings/3d');
+                data3d = await r.json();
+                render();
+                renderSidebar();
+            } catch (e) {
+                console.error('Erro ao carregar embeddings:', e);
+            }
+        }
+
+        function render() {
+            if (!data3d || !data3d.points) return;
+
+            const colorMode = document.getElementById('color-mode').value;
+            const pointSize = parseInt(document.getElementById('point-size').value);
+
+            let colors, legendGroup, text;
+
+            if (colorMode === "angle") {
+                colors = data3d.angles.map(a => ANGLE_COLORS[a] || "#888");
+                legendGroup = data3d.angles;
+                text = data3d.labels.map((l, i) => `${l}<br>Ângulo: ${data3d.angles[i]}`);
+            } else {
+                colors = data3d.colors;
+                legendGroup = data3d.labels;
+                text = data3d.labels.map((l, i) => `${l}<br>Ângulo: ${data3d.angles[i]}<br>ID: ${data3d.identity_ids[i]?.substring(0, 8)}`);
+            }
+
+            const groups = {};
+            data3d.labels.forEach((l, i) => {
+                const key = colorMode === "angle" ? data3d.angles[i] : l;
+                if (!groups[key]) groups[key] = { x: [], y: [], z: [], text: [], color: colors[i] };
+                groups[key].x.push(data3d.points[i][0]);
+                groups[key].y.push(data3d.points[i][1]);
+                groups[key].z.push(data3d.points[i][2]);
+                groups[key].text.push(text[i]);
+            });
+
+            const traces = Object.entries(groups).map(([name, g]) => ({
+                type: 'scatter3d',
+                mode: 'markers',
+                name: name,
+                x: g.x, y: g.y, z: g.z,
+                text: g.text,
+                hoverinfo: 'text',
+                marker: {
+                    size: pointSize,
+                    color: g.color,
+                    opacity: 0.9,
+                    line: { color: 'rgba(255,255,255,0.3)', width: 1 }
+                }
+            }));
+
+            const layout = {
+                paper_bgcolor: '#0a0e17',
+                plot_bgcolor: '#0a0e17',
+                font: { color: '#5a7a9a', family: 'Segoe UI, monospace', size: 11 },
+                scene: {
+                    xaxis: { title: 'PC1', gridcolor: '#1e3a5f', zerolinecolor: '#1e3a5f', backgroundcolor: '#0a0e17' },
+                    yaxis: { title: 'PC2', gridcolor: '#1e3a5f', zerolinecolor: '#1e3a5f', backgroundcolor: '#0a0e17' },
+                    zaxis: { title: 'PC3', gridcolor: '#1e3a5f', zerolinecolor: '#1e3a5f', backgroundcolor: '#0a0e17' },
+                    bgcolor: '#0a0e17',
+                    camera: {
+                        eye: { x: 1.5, y: 1.5, z: 1.0 },
+                        up: { x: 0, y: 0, z: 1 }
+                    }
+                },
+                margin: { l: 0, r: 0, t: 0, b: 0 },
+                showlegend: true,
+                legend: {
+                    bgcolor: 'rgba(13,17,23,0.8)',
+                    bordercolor: '#1e3a5f',
+                    borderwidth: 1,
+                    font: { color: '#c8d6e5', size: 11 }
+                },
+                dragmode: 'orbit'
+            };
+
+            const config = {
+                scrollZoom: true,
+                displayModeBar: true,
+                modeBarButtonsToRemove: ['toImage', 'sendDataToCloud'],
+                displaylogo: false,
+                responsive: true
+            };
+
+            Plotly.newPlot('plot3d', traces, layout, config);
+
+            if (document.getElementById('auto-rotate').value === 'true') {
+                startAutoRotate();
+            }
+        }
+
+        let rotateInterval = null;
+        function startAutoRotate() {
+            stopAutoRotate();
+            rotateInterval = setInterval(() => {
+                const plot = document.getElementById('plot3d');
+                if (!plot._fullLayout) return;
+                const scene = plot._fullLayout.scene._scene;
+                if (scene && scene.getCamera) {
+                    const cam = scene.getCamera();
+                    const angle = 0.02;
+                    const cos = Math.cos(angle), sin = Math.sin(angle);
+                    const x = cam.eye.x * cos - cam.eye.y * sin;
+                    const y = cam.eye.x * sin + cam.eye.y * cos;
+                    Plotly.relayout('plot3d', {
+                        'scene.camera.eye': { x: x, y: y, z: cam.eye.z }
+                    });
+                }
+            }, 50);
+        }
+        function stopAutoRotate() { if (rotateInterval) { clearInterval(rotateInterval); rotateInterval = null; } }
+        function toggleRotate() {
+            if (document.getElementById('auto-rotate').value === 'true') startAutoRotate();
+            else stopAutoRotate();
+        }
+
+        function refresh() { render(); }
+
+        function renderSidebar() {
+            if (!data3d) return;
+
+            document.getElementById('method').textContent = data3d.method || '—';
+            document.getElementById('total-embeddings').textContent = data3d.total_embeddings || 0;
+            document.getElementById('total-identities').textContent = data3d.total_identities || 0;
+
+            if (data3d.explained_variance) {
+                document.getElementById('variance').textContent =
+                    data3d.explained_variance.map(v => v.toFixed(1) + '%').join(', ');
+            }
+
+            const groups = {};
+            data3d.labels.forEach((l, i) => {
+                if (!groups[l]) groups[l] = { color: data3d.colors[i], count: 0, angles: new Set() };
+                groups[l].count++;
+                groups[l].angles.add(data3d.angles[i]);
+            });
+
+            const legend = document.getElementById('legend');
+            legend.innerHTML = Object.entries(groups).map(([name, g]) => `
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:${g.color}"></div>
+                    <span class="legend-name">${name}</span>
+                    <span class="legend-count">${g.count} encodings · ${[...g.angles].join(', ')}</span>
+                </div>
+            `).join('');
+        }
+
+        loadData();
+        setInterval(loadData, 10000);
+    </script>
+</body>
+</html>

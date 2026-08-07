@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  swa-rest:
+    build: ...
+    container_name: swa-rest
+    ports:
+      - "20000:20000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    shm_size: 8g
+    volumes:
+      - ../server.log:/app/server.log
+      - ../models:/app/models:ro

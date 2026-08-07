@@ -1,0 +1,22 @@
+[Unit]
+Description=SWA Quantum MCP Server (SSE)
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=alifer
+Group=alifer
+WorkingDirectory=/services/model-with-adpter-logic-semantic
+# Executa o servidor MCP utilizando uvicorn diretamente
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/services/model-with-adpter-logic-semantic/venv/bin/python -m uvicorn mcp_gateway.server:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+# Logs
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=swa-mcp
+
+[Install]
+WantedBy=multi-user.target

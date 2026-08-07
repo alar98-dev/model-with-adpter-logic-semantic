@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWA-Aeon — Rede Micelial Quântica</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', monospace; }
+        
+        #3d-graph { width: 100vw; height: 100vh; }
+        
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: rgba(0, 212, 255, 0.7);
+            pointer-events: none;
+            z-index: 10;
+            background: rgba(10, 14, 23, 0.6);
+            padding: 16px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            backdrop-filter: blur(4px);
+        }
+        
+        #hud h1 { font-size: 16px; margin: 0 0 10px 0; color: #00d4ff; letter-spacing: 1px; }
+        #hud p { font-size: 11px; margin: 4px 0; color: #a9b7c6; }
+        .pulse { display: inline-block; width: 8px; height: 8px; background: #00ff88; border-radius: 50%; margin-right: 6px; box-shadow: 0 0 8px #00ff88; animation: blink 2s infinite; }
+        
+        #nav-back {
+            position: absolute;
+            color: #00d4ff;
+            background: rgba(0, 20, 30, 0.8);
+            padding: 15px;
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            font-family: monospace;
+            z-index: 10;
+        }
+
+        #btn-macro {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: #00d4ff;
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: monospace;
+            transition: all 0.3s;
+        }
+        #btn-macro:hover {
+            background: #fff;
+        }
+
+        @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    </style>
+    <!-- Inclui Three.js e 3D Force Graph (Versões estáveis fixadas para evitar quebra de CDN) -->
+    <script src="https://unpkg.com/three@0.136.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/3d-force-graph@1.70.5/dist/3d-force-graph.min.js"></script>
+</head>
+<body>
+    <div id="hud">
+        <h3 style="margin: 0 0 10px 0; color: #00d4ff; text-shadow: 0 0 10px #00d4ff;">🟢 VISÃO MICELIAL QUÂNTICA</h3>
+        <div style="font-size: 12px; margin-bottom: 5px;">CONECTIVIDADE: <span id="stat-nodes">0</span> NÓS / <span id="stat-links">0</span> SINAPSES</div>
+        <div style="font-size: 12px; margin-bottom: 5px;">ESTADO: <span id="stat-state" style="color:#ff922b">MACRO-COSMOS</span></div>
+        <div style="font-size: 12px;">TELEMETRIA RAG: <span id="stat-telemetry" style="color: #ff922b;">IDLE</span></div>
+        <button id="btn-macro" onclick="loadMacroCosmos()">🌌 Voltar ao Macro-Cosmos</button>
+    </div>
+
+    <div id="3d-graph"></div>
+
+    <script>
+        let currentMacroNode = null;
+        let Graph = null;
+
+        function initGraph() {
+            Graph = ForceGraph3D()(document.getElementById('3d-graph'))
+                .backgroundColor('#000000')
+                .nodeLabel('name')
+                .nodeRelSize(6)
+                .linkWidth(1.5)
+                .linkOpacity(0.4)
+                .linkColor(() => 'rgba(0, 212, 255, 0.3)')
+                .linkDirectionalParticles(2)
+                .linkDirectionalParticleWidth(2.5)
+                .linkDirectionalParticleSpeed(d => d.value * 0.01)
+                .onNodeClick(node => {
+                    // Se clicou num Macro-Nó, faz o Drill-down!
+                    if (!currentMacroNode) {
+                        loadMicroCosmos(node.id);
+                    }
+                })
+                .nodeThreeObject(node => {
+                    const corSegura = node.color || (node.group === 1 ? '#00d4ff' : node.group === 2 ? '#ff922b' : '#cc5de8');
+                    
+                    const group = new THREE.Group();
+                    
+                    // Núcleo sólido
+                    const core = new THREE.Mesh(
+                        new THREE.SphereGeometry(node.val || 2),
+                        new THREE.MeshBasicMaterial({ color: corSegura })
+                    );
+                    group.add(core);
+                    
+                    // Halo de energia (Glow simples)
+                    const halo = new THREE.Mesh(
+                        new THREE.SphereGeometry((node.val || 2) * 1.8),
+                        new THREE.MeshBasicMaterial({ 
+                            color: corSegura, 
+                            transparent: true, 
+                            opacity: 0.3,
+                            blending: THREE.AdditiveBlending
+                        })
+                    );
+                    group.add(halo);
+                    
+                    return group;
+                });
+        }
+
+        // Efeito de Glow
+        function generateGlow() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const context = canvas.getContext('2d');
+            const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)');
+            gradient.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 32, 32);
+            return canvas;
+        }
+
+        function loadGraphData(url) {
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('stat-nodes').textContent = data.nodes.length;
+                    document.getElementById('stat-links').textContent = data.links.length;
+                    Graph.graphData(data);
+                    
+                    // Ajusta a câmera após 500ms para encaixar a nova malha
+                    setTimeout(() => {
+                        Graph.zoomToFit(400, 50);
+                    }, 500);
+                })
+                .catch(err => console.error("Erro ao carregar malha:", err));
+        }
+
+        function loadMacroCosmos() {
+            currentMacroNode = null;
+            document.getElementById('btn-macro').style.display = 'none';
+            document.getElementById('stat-state').textContent = 'MACRO-COSMOS (Todos os Temas)';
+            document.getElementById('stat-state').style.color = '#00ff88';
+            loadGraphData('/api/mycelium');
+        }
+
+        function loadMicroCosmos(nodeId) {
+            currentMacroNode = nodeId;
+            document.getElementById('btn-macro').style.display = 'block';
+            document.getElementById('stat-state').textContent = `MICRO-COSMOS (${nodeId})`;
+            document.getElementById('stat-state').style.color = '#ff922b';
+            
+            // Simulação de transição Sci-fi: Mergulho rápido
+            const distance = 40;
+            const distRatio = 1 + distance/Math.hypot(Graph.cameraPosition().x, Graph.cameraPosition().y, Graph.cameraPosition().z);
+            Graph.cameraPosition(
+                { x: Graph.cameraPosition().x * distRatio, y: Graph.cameraPosition().y * distRatio, z: Graph.cameraPosition().z * distRatio }, // zoom in
+                Graph.cameraPosition(), 
+                1000  // transição ms
+            );
+            
+            setTimeout(() => {
+                loadGraphData(`/api/mycelium?node=${encodeURIComponent(nodeId)}`);
+            }, 800);
+        }
+
+        // Inicializa
+        initGraph();
+        loadMacroCosmos();
+
+        // 🌟 Telemetria de Inferência OODA (Consciente)
+        let lastDiaryString = "";
+
+        const eventSource = new EventSource('/api/event-stream');
+        
+        // --- 1. A Célula Nebulosa (Subconsciente / Espaço Latente) ---
+        eventSource.addEventListener('matrix_update', (e) => {
+            const data = JSON.parse(e.data);
+            if (data.chaos_matrix) {
+                const binaryString = atob(data.chaos_matrix);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) { bytes[i] = binaryString.charCodeAt(i); }
+                const floatArray = new Float32Array(bytes.buffer);
+                
+                // Calcula a "Energia" da Nebulosa Latente (A Atividade do Córtex)
+                let sum = 0;
+                for(let i=0; i<floatArray.length; i++) sum += Math.abs(floatArray[i]);
+                const latentEnergy = sum / floatArray.length;
+                
+                const graphData = Graph.graphData();
+                
+                // 1. Pulso Neural: A Nebulosa faz todos os nós pulsarem levemente
+                const scale = 1 + (latentEnergy * 10);
+                
+                if (graphData.links.length > 0) {
+                    // A Nebulosa dispara sinapses de background proporcionais à sua energia de caos
+                    // (Isso cria o efeito da rede estar "viva" e processando em background)
+                    const pulseRate = Math.max(1, Math.floor(latentEnergy * 30));
+                    for(let i=0; i<pulseRate; i++) {
+                        const randomLink = graphData.links[Math.floor(Math.random() * graphData.links.length)];
+                        Graph.emitParticle(randomLink); // Dispara fótons suaves pela ponte
+                    }
+                }
+            }
+        });
+
+        // --- 2. OODA Loop (Raciocínio Explícito / RAG) ---
+        eventSource.addEventListener('ooda_log', (e) => {
+            const data = JSON.parse(e.data);
+            if (data.diary && data.diary.length > 0) {
+                const currentDiaryString = data.diary.join(' ');
+                if (currentDiaryString === lastDiaryString) return;
+                lastDiaryString = currentDiaryString;
+
+                const telemetryText = document.getElementById('stat-telemetry');
+                telemetryText.textContent = "OODA LOOP ACTIVE / SYNAPSES FIRING";
+                telemetryText.style.color = "#00ff88";
+                
+                const graphData = Graph.graphData();
+                const activeNodes = [];
+                const currentUpper = currentDiaryString.toUpperCase();
+
+                // Vasculha conceitos no Log
+                graphData.nodes.forEach(node => {
+                    const keywords = node.id.replace(/_/g, ' ').toUpperCase().split(' ');
+                    let match = false;
+                    for(let kw of keywords) {
+                        if (kw.length > 3 && currentUpper.includes(kw)) {
+                            match = true;
+                            break;
+                        }
+                    }
+                    if (match) activeNodes.push(node);
+                });
+
+                // Acende sinapses direcionadas (Raio Branco Incandescente)
+                if (activeNodes.length > 0) {
+                    const activeLinks = [];
+                    graphData.links.forEach(link => {
+                        const sourceId = link.source.id || link.source;
+                        const targetId = link.target.id || link.target;
+                        
+                        const isSourceActive = activeNodes.some(n => n.id === sourceId);
+                        const isTargetActive = activeNodes.some(n => n.id === targetId);
+
+                        if (isSourceActive || isTargetActive) {
+                            activeLinks.push(link);
+                            Graph.emitParticle(link);
+                            Graph.emitParticle(link);
+                        }
+                    });
+                    
+                    Graph.linkColor(link => activeLinks.includes(link) ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 212, 255, 0.1)');
+                    
+                    setTimeout(() => {
+                        telemetryText.textContent = "IDLE (NEBULA CONSCIOUSNESS)";
+                        telemetryText.style.color = "#ff922b";
+                        Graph.linkColor(() => 'rgba(0, 212, 255, 0.2)'); 
+                    }, 1500);
+                } else {
+                    setTimeout(() => {
+                        telemetryText.textContent = "IDLE (NEBULA CONSCIOUSNESS)";
+                        telemetryText.style.color = "#ff922b";
+                    }, 500);
+                }
+            }
+        });
+
+        // Interação de Câmera
+        Graph.onNodeClick(node => {
+            // Focar a câmera no nó clicado
+            const distance = 40;
+            const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
+            Graph.cameraPosition(
+                { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio }, 
+                node, 
+                3000 // ms
+            );
+        });
+    </script>
+</body>
+</html>

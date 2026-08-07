@@ -1,0 +1,15 @@
+[Unit]
+Description=SWA REST Latent Gateway
+After=network-online.target swa-auto.service
+
+[Service]
+Type=simple
+User=alifer
+WorkingDirectory=/services/model-with-adpter-logic-semantic
+ExecStart=/services/model-with-adpter-logic-semantic/venv/bin/python swa/rest_server.py
+Restart=always
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

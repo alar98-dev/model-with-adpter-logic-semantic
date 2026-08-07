@@ -1,0 +1,25 @@
+[Unit]
+Description=SWA Auditory Cortex (Echo Feedback Listener)
+After=network-online.target postgresql.service postgresql@17-main.service swa-auto.service
+Wants=swa-auto.service
+
+[Service]
+Type=simple
+User=alifer
+Group=alifer
+WorkingDirectory=/services/model-with-adpter-logic-semantic
+
+Environment=PYTHONUNBUFFERED=1
+Environment=SWA_PROJECT_ROOT=/services/model-with-adpter-logic-semantic
+Environment=SWA_REAL_EMBEDDINGS=1
+
+ExecStart=/services/model-with-adpter-logic-semantic/venv/bin/python cortex/auditory_cortex.py
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=swa-auditory
+
+[Install]
+WantedBy=multi-user.target
