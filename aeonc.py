@@ -1583,7 +1583,18 @@ def main() -> None:
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--device", default="auto", help="auto|cpu|cuda|xpu")
     parser.add_argument("--dtype", default=None, help="auto|float32|float16|bfloat16")
-    parser.add_argument("--compile", action="store_true", help="ativa torch.compile (maior tps)")
+    parser.add_argument(
+        "--compile",
+        action="store_true",
+        default=True,
+        help="ativa torch.compile (maior tps) — padrão ON; use --no-compile para desativar",
+    )
+    parser.add_argument(
+        "--no-compile",
+        dest="compile",
+        action="store_false",
+        help="desativa torch.compile",
+    )
     parser.add_argument("--api", action="store_true", help="sobe a API HTTP/SSE")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8899)
@@ -1596,7 +1607,14 @@ def main() -> None:
     parser.add_argument(
         "--tensors",
         action="store_true",
-        help="compartilha o tensor da última camada do decoder via /dev/shm/aeon/core.tensor.bin",
+        default=True,
+        help="compartilha o tensor da última camada do decoder via /dev/shm/aeon/core.tensor.bin — padrão ON; use --no-tensors para desativar",
+    )
+    parser.add_argument(
+        "--no-tensors",
+        dest="tensors",
+        action="store_false",
+        help="desativa o compartilhamento de tensor",
     )
     parser.add_argument(
         "--profile",
