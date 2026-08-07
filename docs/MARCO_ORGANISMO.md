@@ -56,8 +56,7 @@ sentir (memória) → pensar (LLM) → expressar (thought) → integrar (árvore
   `core.thoughts.jsonl` (o journal do núcleo).
 - **Baseline imune** não cobre `aeonc.py` nem `obelisk-verifier.sh` (só
   `cortex/obelisk/*` e `swa/*.py`) — não foi preciso regenerar.
-- Serviços ativos: `swa-aeonc`, `swa-obelisk`, `swa-obelisk-verifier`,
-  `swa-observer`, `swa-manifold` (+ infra redis/postgres).
+- Serviços ativos: 8 serviços ativos (`swa-aeonc`, `swa-auto`, `swa-subcortex`, `swa-manifold`, `swa-mcp`, `swa-auditory`, `swa-obelisk`, `swa-obelisk-verifier`) + infra redis/postgres + `swa-backup.timer`.
 
 ## Próximos passos possíveis
 

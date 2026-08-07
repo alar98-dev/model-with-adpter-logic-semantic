@@ -53,16 +53,22 @@ desacoplado que detecta mutações internas em tempo real.
     └── SESSION_RESUME.md              ← este arquivo
 ```
 
-## Estado Atual dos Serviços
+## Estado Atual dos Serviços (8 Unidades Ativas)
 
-| Serviço | Enabled | Running | Auto-start |
-|---------|---------|---------|------------|
-| `swa-obelisk.service` | ✅ | ✅ active | ✅ multi-user.target |
-| `swa-obelisk-train.service` | disabled (timer) | — | ✅ via timer |
-| `swa-obelisk-train.timer` | ✅ | ✅ waiting | ✅ timers.target |
+| Serviço | Descrição | Estado Real |
+|---------|-----------|-------------|
+| `swa-aeonc.service` | Aeon Core (Gemma-3-1B-it) | ✅ active running (Porta 20000) |
+| `swa-auto.service` | Autonomous Orchestrator (OODA) | ✅ active running (Porta 20001) |
+| `swa-subcortex.service` | Subcórtex (Gemma-3-270m) | ✅ active running |
+| `swa-manifold.service` | Vector Manifold (oneshot build) | ✅ active exited |
+| `swa-mcp.service` | MCP Server (SSE Gateway) | ✅ active running (Porta 8000) |
+| `swa-auditory.service` | Auditory Cortex | ✅ active running |
+| `swa-obelisk.service` | Obelisk Watchdog (Gemma-270m+LoRA) | ✅ active running |
+| `swa-obelisk-verifier.service` | Obelisk Verifier (Watchdog do Core/Obelisk) | ✅ active running |
 
-PID raiz do watchdog: `/var/run/aeon/obelisk.pid`
-Heartbeat: `/var/run/aeon/obelisk.heartbeat`
+PID raiz do watchdog: `/dev/shm/aeon/obelisk.pid`
+Heartbeat: `/dev/shm/aeon/obelisk.heartbeat`
+Heartbeat do núcleo: `/dev/shm/aeon/core.heartbeat`
 
 ## Dependências Python
 
@@ -138,8 +144,8 @@ alinhamento topológico próprio). Precisa de:
 
 ### 6. Integração com Outros Serviços SWA
 - `swa-dream.service` — pode fornecer "dream states" como subespaço adicional
-- `swa-mcp.service` — pode expor tensor via MCP tool
-- `swa-subcortex.service` — pode receber comandos do obelisco
+- `swa-mcp.service` — Ativo (Porta 8000), expõe o organismo via interface Starlette/SSE
+- `swa-subcortex.service` — Ativo, gera percepção de imagem mental e comunica-se de forma bidirecional com o córtex
 
 ### 7. Artigo/POC
 `docs/POC_OBELISK_BLAKE_GRAVITY.md` contém:

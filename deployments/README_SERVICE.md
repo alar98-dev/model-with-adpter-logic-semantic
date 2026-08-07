@@ -1,7 +1,10 @@
 SWA REST service (systemd)
 ===========================
 
-This folder contains helper files to run the `swa.rest_server` Uvicorn app as a service.
+This folder contains helper files to run the legacy `swa.rest_server` Uvicorn app as a service.
+
+> [!WARNING]
+> O serviço `swa-rest.service` está depreciado. A arquitetura atual SWA Aeon utiliza `swa-aeonc.service` para expor a API OpenAI na porta `20000` e `swa-auto.service` para rodar o loop OODA e o servidor de controle na porta `20001`.
 
 Files
 - `swa-rest.service`: systemd unit file (template uses absolute paths pointing to the project)
@@ -36,7 +39,9 @@ tail -f server.log
 ```
 
 Ports and binding
-- The service binds to `0.0.0.0:20000` by default. Adjust the unit or script if you need another port.
+- O núcleo (`swa-aeonc.service`) escuta na porta `20000` por padrão.
+- O orquestrador autônomo (`swa-auto.service`) escuta na porta `20001` por padrão para evitar colisão de portas.
+- O gateway MCP (`swa-mcp.service`) escuta na porta `8000` por padrão.
 
 Security
 - For production, consider running behind a reverse proxy, set up proper user privileges, and secure access to the port.

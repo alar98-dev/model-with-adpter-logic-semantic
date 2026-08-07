@@ -1,5 +1,5 @@
 # Docker & Model Setup for Gemma 1B Test
-Status: In Progress [BLACKBOXAI]
+Status: Completed (Migrated to Systemd Native Production)
 
 ## Steps:
 
@@ -7,8 +7,9 @@ Status: In Progress [BLACKBOXAI]
 ### 2. [✅ DONE] Replace docker-compose.yml with user's config (swa-server, volumes .:/app + models, MODEL_DIR env)
 ### 3. [✅ DONE] Create .env.example for HF_TOKEN
 ### 4. [✅ DONE] Make scripts/clone_gemma.sh idempotent and executable
-### 5. [PENDING] execute docker-compose up --build -d
-### 6. [PENDING] Test curl http://localhost:20000/api/v1/chat with Gemma 1B
-### 7. [DONE] Update original TODO.md tests ✅ & attempt_completion
+### 5. [✅ DONE] Migrado para systemd nativo (swa.target com 8 unidades)
+### 6. [✅ DONE] Testado e validado (aeonc.py na 20000 e run.py na 20001)
+### 7. [✅ DONE] Update original TODO.md tests & attempt_completion
 
-Next step? Will update after each.
+> [!NOTE]
+> O ecossistema SWA Aeon foi migrado do Docker-Compose para execução nativa via systemd no WSL2 para otimizar o uso de RAM/CPU e evitar colisões de portas e VRAM. O guia de execução via systemd está documentado em `deployments/README_BOOT.md`.

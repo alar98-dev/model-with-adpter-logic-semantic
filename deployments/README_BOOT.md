@@ -1,15 +1,17 @@
 # Boot systemd — SWA Aeon (arquitetura v2)
 
-## Ordem de inicialização
+## Ordem de inicialização (8 Unidades do Sistema)
 
 ```text
 postgresql
-    → swa-mcp.service
-    → swa-subcortex.service (Gemma 270M, processo separado)
-    → swa-manifold.service (oneshot: rebuild SHM + pgvector, embeddings reais)
-    → swa-auto.service (Gemma 1B, loop OODA)
-    → swa-auditory.service
-    → swa-obelisk.service (watchdog, root)
+    → swa-aeonc.service (Core Gemma-3-1B-it na porta 20000)
+    → swa-mcp.service (Starlette MCP Gateway na porta 8000)
+    → swa-subcortex.service (Sensorial Gemma-3-270m)
+    → swa-manifold.service (Oneshot: rebuild SHM + pgvector)
+    → swa-auto.service (OODA Loop na porta 20001, consome tensor do core)
+    → swa-auditory.service (Sensor auditivo)
+    → swa-obelisk.service (Watchdog cognitivo Gemma-3-270m+LoRA)
+        → swa-obelisk-verifier.service (Watchdog bash de integridade/liveness)
 ```
 
 Ou habilitar o alvo grupo:
@@ -39,7 +41,7 @@ sudo bash deployments/install_swa_systemd.sh
 ## Verificação pós-boot
 
 ```bash
-systemctl status swa-manifold swa-auto swa-subcortex swa-mcp
+systemctl status swa-aeonc swa-mcp swa-subcortex swa-manifold swa-auto swa-auditory swa-obelisk swa-obelisk-verifier
 cat /dev/shm/swa_vector_manifold/manifest.json | grep embedding_source
 journalctl -u swa-manifold -u swa-auto -b --no-pager | tail -40
 ```

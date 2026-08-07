@@ -1,81 +1,65 @@
-# Semantic Warp Adapter (SWA) com Gemma3-4B — Documentação Técnica
+# Semantic Warp Adapter (SWA) com Gemma-3-1B-it — Documentação Técnica
 
 ## Resumo do Projeto
 
-**Arquitetura Single-Model Otimizada para RAM:** Gemma3-4B (quantizada float16) + Semantic Warp Adapter (SWA).  
-Projetamos vetores latentes da Gemma3-4B em hiperespaço lógico (causalidade, valência, temporalidade) sem alterar pesos base.  
-Otimizado para 8-16GB RAM (CPU/Xeon), sem GPU obrigatória. Porta de serviço: **20000**.
+**Arquitetura Purificada baseada em systemd nativo (WSL2):** Gemma-3-1B-it (Núcleo Central, bf16 + `torch.compile`) + Gemma-3-270m (Subcórtex e Obelisk Watchdog).  
+Projetamos e expomos o estado latente dos tensores do núcleo (camada 26) via memória compartilhada (`/dev/shm`), permitindo que o orquestrador autônomo OODA (`run.py`) consuma essa gravidade semântica para modular suas ações.
 
-**Objetivo:** Melhorar raciocínio lógico de SLMs via adaptação vetorial, com geração guiada por prefixo virtual.
+Otimizado para execução em CPU com baixo consumo de recursos (11GB RAM), sem GPU obrigatória.
+- **Porta do Núcleo (API OpenAI & Health):** `20000`
+- **Porta do Orquestrador OODA (REST/CLI):** `20001`
+- **Porta do MCP Gateway (FastAPI/SSE):** `8000`
 
 ## Diagrama de Fluxo de Dados
 
 ```
-Texto → Tokenizer(Gemma3-4B)
-     ↓
-Embedding (mean pool, d=3072) → SWA Local (k=32) → SWA Macro (k=32, prefix_mode)
-     ↓
-LogicalEngine (rolling buffer + close_context) → v_global
-     ↓
-Geração (stream_with_prefix: cat(v_global + prompt_embeds) → Autoregressive)
-     ↓
-Resposta Eloquent (/api/v1/chat)
+Usuário/API ──▶ CLI (aeon) ──▶ aeonc.py (Gemma-3-1B-it, porta 20000)
+                                     │
+                                     ├─ (grava tensor camada 26 blake3 assinado)
+                                     ▼
+                      /dev/shm/aeon/core.tensor.bin
+                                     ▲
+                                     │ (leitura assíncrona do estado latente)
+                                     │
+Loop OODA (Observe) ───────────────▶ run.py (swa-auto, porta 20001)
 ```
-
-**Modo Dual (opcional):** Llama-3.1-8B (GPU, 4-bit NF4 bruto) + Gemma3-4B (CPU norm). Set `USE_DUAL_MODEL=true`.
 
 ## Guia de Configuração
 
 ### Pré-requisitos
-- Python 3.10+, `pip install -r requirements.txt`
-- Modelos: `models/gemma3-4b/` (HF format), opc. `models/Llama-3.1-8B-Instruct/` (dual).
-- Docker: Para produção (veja abaixo).
+- Python 3.12 (gerenciado via `.pyenv` no ambiente de produção).
+- Modelos HF: `models/gemma-3-1b-it` (núcleo) e `models/gemma-3-270m` (subcórtex/obelisk).
+- Redis e PostgreSQL rodando localmente no host.
 
-### Docker
+### Execução via Systemd (Produção)
+O ecossistema é gerenciado por 8 serviços do systemd. Para habilitar e iniciar todos os serviços:
 ```bash
-cp .env.example .env  # MODEL_DIR=models/gemma3-4b, GEMMA_DEVICE=cpu
-docker-compose up -d
+sudo systemctl enable --now swa.target
 ```
 
-**.env chave:**
-```
-MODEL_DIR=/app/models/gemma3-4b
-USE_DUAL_MODEL=false  # true para Llama+Gemmma
-GEMMA_DEVICE=cpu
-LLAMA_DEVICE=cuda     # se dual e GPU
-PORT=20000
-```
-
-### Local
+Você pode checar o status de todas as unidades rodando:
 ```bash
-pip install -r requirements.txt
-MODEL_DIR=models/gemma3-4b uvicorn swa.rest_server:app --port 20000
+systemctl list-units --type=service | grep swa
 ```
 
-### Otimização RAM (Gemma3-4B)
-- float16: ~8GB RAM.
-- low_cpu_mem_usage=True (padrão).
-- Teste: `curl -X POST http://localhost:20000/api/v1/utils/self_check`
-
-## Endpoints da API
-
-| Endpoint | Método | Descrição | Exemplo |
-|----------|--------|-----------|---------|
-| `/api/v1/chat` | POST | Chat stream com SWA + Gemma3 virtual prefix | `{"prompt": "Pergunta lógica?"}` |
-| `/api/v1/process` | POST | Processa textos → vetores ancorados | `{"texts": ["um", "dois"]}` |
-| `/api/v1/llama_bruto` | POST | Dual: Llama bruto (+opc norm Gemma3) | `{"prompt": "...", "normalize": true}` |
-| `/api/v1/docs` | GET | Swagger UI | - |
-
-**Exemplo curl chat:**
+### Execução Local (Desenvolvimento)
+Para iniciar o núcleo manualmente (CLI interativa com tensores e compilação ativos):
 ```bash
-curl -X POST http://localhost:20000/api/v1/chat \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Explique causalidade."}' \
-  --no-buffer
+python3 aeonc.py --compile --tensors
 ```
 
-**Estrutura PyTorch:** Veja `docs/api.md`. Testes: `examples/run_quickstart.py`.
+Para iniciar a API do núcleo na porta 20000:
+```bash
+python3 aeonc.py --api --host 127.0.0.1 --port 20000 --compile --tensors
+```
+
+## Estrutura de Portas e Endpoints
+
+| Componente | Porta | Endereço | Principais Endpoints |
+|------------|-------|----------|----------------------|
+| **Core (aeonc.py)** | 20000 | `http://127.0.0.1:20000` | `/v1/chat/completions` (OpenAI stream), `/health`, `/v1/models` |
+| **OODA (run.py)** | 20001 | `http://127.0.0.1:20001` | REST endpoints clássicos do orquestrador |
+| **MCP Server** | 8000 | `http://127.0.0.1:8000` | `/sse`, `/messages/` (Starlette) |
 
 ---
-*Versão: Gemma3-4B RAM-Opt (2024). Contribuições bem-vindas!*
-
+*Versão: SWA-Aeon v2.0 (2026).*
