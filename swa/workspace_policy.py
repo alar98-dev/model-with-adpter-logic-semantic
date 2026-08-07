@@ -148,6 +148,8 @@ def should_skip_dir(dirname: str) -> bool:
         return True
     if dirname.startswith("."):
         return True
+    if dirname.endswith(".orig"):
+        return True
     return False
 
 
