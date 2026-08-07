@@ -165,7 +165,7 @@ async def find_common_state_quantized():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=20000, log_level="warning")
+    uvicorn.run(app, host="0.0.0.0", port=20001, log_level="warning")
 
 from fastapi import WebSocket
 
