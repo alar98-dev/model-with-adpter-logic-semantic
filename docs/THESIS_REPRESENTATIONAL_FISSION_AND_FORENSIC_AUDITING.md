@@ -226,3 +226,24 @@ A arquitetura Aeon/SWA no WSL2 unifica com elegância a teoria do espaço latent
 
 
 
+
+
+---
+
+## 10. Geometrização de Hardware e Hardening de Concorrência
+
+Em 27 de Outubro de 2026, a arquitetura Aeon / SWA foi submetida a uma auditoria forense estrutural automatizada que catalogou 50 gaps arquiteturais em 7 domínios. A calibração foi formalmente alinhada à geometria física do hardware hospedeiro (**Intel Core 5 120U**, 10 vCPUs em WSL2, 11 GiB RAM):
+
+1. **Inferência Bi-Cameral Concorrente**:
+   - **Subcórtex Gemma-3 270M**: Transicionado de monotarefa (`-np 1 --no-cont-batching`) para processamento paralelo dinâmico (**`-np 4 --cont-batching -t 4`**). Elimina contenção em spin-locks e permite extração simultânea de embeddings 640D e deliberações de fissão.
+   - **Córtex Gemma-3 1B**: Janela expandida para **8192 tokens** com `-t 4` e teto de prompt textual de 7000 tokens, garantindo que o critério de finalização de sessões e turnos de inferência repouse unicamente na emissão natural de `<end_of_turn>` / `EOS` pelo modelo Gemma.
+
+2. **Segurança de Rede e Isolamento Loopback**:
+   - Eliminação de qualquer escuta em `0.0.0.0`. Todas as portas da malha (SSH 22, Gateway 8050, Difusão 9400, Córtex 20003, Subcórtex 20002, Redis 6379, Postgres 5432) foram vinculadas estritamente a `127.0.0.1`.
+   - Proteção de CORS no Gateway Rust restrita exclusivamente a clientes originários de `localhost` e `127.0.0.1`.
+
+3. **Governança de Dados e Descomissionamento**:
+   - O serviço legado `mongod.service` foi formalmente desativado e desabilitado. O PostgreSQL 17 `swa_matrix` consolida-se como a única fonte da verdade canônica e vetorial.
+   - A tabela `physical_chunks` teve 63.724 tuplas mortas eliminadas via `VACUUM ANALYZE` e recebeu autovacuum agressivo (`scale_factor = 0.02`).
+   - A tabela `vector_sanctum` recebeu índice vetorial **HNSW** (`idx_vector_sanctum_centroid_hnsw`) na coluna `centroid_vector` (640D) e normalização canônica de chave primária (`vector_sanctum_pkey`).
+   - O servidor Redis teve sua memória limitada geometricamente a **1500 MB** (`volatile-lru`) e seu arquivo de log AOF compactado de 1.05 GB para 650 MB via `BGREWRITEAOF`.
