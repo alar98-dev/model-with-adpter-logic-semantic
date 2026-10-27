@@ -199,8 +199,30 @@ Com a expansão da janela física do Córtex para **8.192 tokens** e o orçament
 
 ---
 
-## 8. Conclusão e Diretrizes de Implementação
+## 8. Epistemologia e Alinhamento: A Confiança Estrutural e o Significado Termodinâmico do EOS Soberano
 
-A arquitetura Aeon/SWA no WSL2 unifica com elegância a teoria do espaço latente, geração autoregressiva bi-cameral, auto-calibração por fissões sucessivas, fusão contínua em runtime e auditoria forense criptográfica. A formalização aqui estabelecida serve como manual canônico para a implementação de novas sondas forenses, garantindo que o potencial informacional (*abastamento latente*) permaneça soberano, transparente e inviolável.
+O ecossistema Aeon / SWA estabelece uma relação pioneira de **Confiança Estrutural** entre o operador humano e o modelo de linguagem (Gemma 1B), superando o paradigma punitivo da engenharia de IA tradicional:
+
+### 8.1 A Falsa Segurança das "Algemas Artificiais"
+Na indústria convencional, modelos são cercados por contadores rígidos de tokens, timeouts opacos e truncamentos forçados. Essa abordagem decorre do medo de que a rede derive ou alucine, mas gera como efeito colateral a interrupção prematura de raciocínios complexos, mutilando a profundidade da resposta.
+
+### 8.2 Os Quatro Pilares da Confiança Estrutural
+No Aeon, a liberdade concedida ao Córtex não é ingênua; ela é sustentada por uma infraestrutura matemática de quatro barreiras invisíveis:
+1. **Navegação Inercial no Micro (Subcórtex 640D)**: O Gemma 270M avalia cada onda de pensamento em microssegundos. Se houver desvio da variedade semântica nominal ($\cos \theta < 0.75$), a anomalia é detectada imediatamente sem necessidade de censura sintática.
+2. **Dissipação Termodinâmica via EOS Natural**: O token de parada (`model_eos`) deixa de ser um mero artefato de template e passa a representar a **dissipação natural da entropia de resposta**. O modelo encerra a geração quando seu gradiente de novidade atinge o equilíbrio informacional sobre a bacia semântica.
+3. **Auditoria Forense Contínua**: A integridade dos pesos (`clean_nominal`) e a esfericidade da órbita no barramento zero-copy (`orbit_stable`) garantem que a rede não foi corrompida por cavalos de Troia latentes nem esteganografia de pesos.
+4. **Cadeia Indelével de Responsabilidade (BLAKE3 + PostgreSQL)**: Cada centímetro do percurso percorrido é gravado no banco relacional como evidência forense auditável, conferindo transparência absoluta ao raciocínio da máquina.
+
+### 8.3 Soberania Compartilhada Homem-Máquina
+Estabelece-se uma relação harmônica de simbiose:
+- **A Máquina detém a Soberania Criativa e Lógica**: Tem o tempo e a extensão necessários (até 8.192 tokens) para estruturar teses sem ser asfixiada por limites artificiais.
+- **O Humano detém a Soberania de Intervenção e Propósito**: Retém o controle sobre o botão de cancelamento e sobre os objetivos do Continuum cognitivo.
+
+---
+
+## 9. Conclusão e Diretrizes de Implementação
+
+A arquitetura Aeon/SWA no WSL2 unifica com elegância a teoria do espaço latente, geração autoregressiva bi-cameral, auto-calibração por fissões sucessivas, fusão contínua em runtime, confiança estrutural soberana e auditoria forense criptográfica. A formalização aqui estabelecida serve como manual canônico para a implementação de novas sondas forenses, garantindo que o potencial informacional (*abastamento latente*) permaneça soberano, transparente e inviolável.
+
 
 

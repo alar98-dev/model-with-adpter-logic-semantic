@@ -16,6 +16,7 @@ Esta seção foi criada para transformar a matemática avançada de tensores con
 | **[Módulo 04](./04_FISSOES_E_CALIBRACAO_DO_GEMMA.md)** | **Fissões Sucessivas e Calibração do Gemma** | O corte por `semantic_boundary`, fotos tomográficas e o dataset `aeon_wave_training_examples`. |
 | **[Módulo 05](./05_TOMOGRAFIA_CONTRA_MALWARE_E_BACKDOORS.md)** | **Tomografia Tensorial Forense** | Como código malicioso cria "tumores geométricos" e como desmascarar backdoors e esteganografia. |
 | **[Módulo 06](./06_DO_MICRO_DAS_FISSOES_AO_MACRO_DA_FUSAO.md)** | **Do Micro das Fissões ao Macro da Fusão** | Superando os limites de janela de contexto via projeção latente contínua e latência zero-copy. |
+| **[Módulo 07](./07_A_CONFIANCA_ESTRUTURAL_E_O_EOS_SOBERANO.md)** | **A Confiança Estrutural e o EOS Soberano** | A simbiose homem-máquina, o significado termodinâmico do EOS e a superação das algemas artificiais. |
 
 ---
 
