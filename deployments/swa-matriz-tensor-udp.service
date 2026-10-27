@@ -1,0 +1,34 @@
+[Unit]
+Description=SWA Matriz Tensor UDP to OODA and AeonCell Mascot Bridge
+Documentation=file:///home/alifer/swa-aeon/swa/matriz_ooda_bridge.py
+After=network.target redis-server.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=alifer
+WorkingDirectory=/home/alifer/swa-aeon
+Environment=PYTHONPATH=/home/alifer/swa-aeon
+Environment=SWA_TENSOR_UDP_HOST=127.0.0.1
+Environment=SWA_TENSOR_UDP_PORT=20011
+Environment=SWA_MASCOT_REDIS_CHANNEL=swa:mascot:state
+Environment=SWA_MATRIX_REDIS_STREAM=aeon:matrix:ooda
+Environment=SWA_MATRIX_WEIGHTS=/dev/shm/aeon/swa_matriz_wa_1152x640_f16.bin
+Environment=SWA_MATRIZ_OODA_STATE=/dev/shm/aeon/matriz_ooda_state.json
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/alifer/swa-aeon/venv/bin/python3 -m swa.matriz_ooda_bridge
+Restart=always
+RestartSec=2
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/dev/shm/aeon
+MemoryHigh=256M
+MemoryMax=512M
+CPUQuota=50%
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=swa-matriz-udp
+
+[Install]
+WantedBy=multi-user.target

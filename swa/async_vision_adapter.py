@@ -26,6 +26,11 @@ class AsyncVisionAdapter:
         import socket
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                sock.setsockopt(socket.SOL_SOCKET, getattr(socket, 'SO_REUSEPORT', 15), 1)
+            except Exception:
+                pass
             sock.bind(('127.0.0.1', 9099))
             sock.settimeout(2.0)
             print("👂 [EPIDERME] Receptor Cinético UDP ativado na porta 9099.")

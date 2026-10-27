@@ -42,7 +42,7 @@ def hash_2560(text: str) -> np.ndarray:
     seed = int(hashlib.sha256(hashed).hexdigest()[:8], 16)
     torch.manual_seed(seed)
     v = torch.nn.functional.normalize(torch.randn(GOLD_DIM), p=2, dim=0)
-    return v.numpy().astype("float32")
+    return v.detach().cpu().numpy().astype("float32")
 
 
 class OODAFlow:
@@ -142,7 +142,7 @@ class OODAFlow:
         if tensor is None or not hasattr(tensor, "numpy"):
             return {}
         try:
-            v = tensor.numpy().astype("float32")
+            v = tensor.detach().cpu().numpy().astype("float32")
             if v.ndim != 1 or v.shape[0] == 0:
                 return {}
             return {"dim": int(v.shape[0]), "norm": round(float(np.linalg.norm(v)), 4), "std": round(float(np.std(v)), 4)}

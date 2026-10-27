@@ -307,6 +307,16 @@ class GemmaGenerator:
         
         self.lm.eval()
 
+        if os.environ.get("SWA_INT8", "0") == "1":
+            try:
+                from torchao.quantization import quantize_
+                from torchao.quantization.quant_api import Int8WeightOnlyConfig
+                self.lm.to(torch.bfloat16)
+                quantize_(self.lm, Int8WeightOnlyConfig())
+                print("⚡ [SWA AUTO] Quantização INT8 weight-only aplicada (AVX-VNNI)")
+            except Exception as e:
+                print(f"⚠️ [SWA AUTO] INT8 indisponível, mantendo bf16: {e}")
+
 
         # -------- logs after model load --------
         try:

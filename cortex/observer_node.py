@@ -487,6 +487,61 @@ class ObserverHandler(BaseHTTPRequestHandler):
             
             _json_response(self, graph)
 
+        # ── API: EM Core State (snapshot) ───────────────────────
+        elif path == "/api/em/state":
+            try:
+                from swa.em.integration import EMCore
+                core = EMCore.get_instance()
+                _json_response(self, core.status())
+            except Exception as e:
+                _json_response(self, {"error": str(e)}, 500)
+
+        # ── API: EM Core SSE Stream ────────────────────────────
+        elif path == "/api/em/stream":
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/event-stream; charset=utf-8')
+            self.send_header('Cache-Control', 'no-cache')
+            self.send_header('Connection', 'keep-alive')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            try:
+                from swa.em.integration import EMCore
+                core = EMCore.get_instance()
+                import queue as _queue
+                event_queue = _queue.Queue(maxsize=64)
+
+                def on_em_event(data):
+                    try:
+                        event_queue.put_nowait(data)
+                    except _queue.Full:
+                        pass
+
+                core.subscribe_sse(on_em_event)
+                try:
+                    while True:
+                        try:
+                            event = event_queue.get(timeout=2.0)
+                            payload = json.dumps(event, default=str)
+                            self.wfile.write(f"event: em_update\ndata: {payload}\n\n".encode('utf-8'))
+                        except _queue.Empty:
+                            self.wfile.write(b": keepalive\n\n")
+                        self.wfile.flush()
+                except Exception:
+                    pass
+                finally:
+                    core.unsubscribe_sse(on_em_event)
+            except Exception:
+                pass
+
+        # ── API: Matrixial Relation State ──────────────────────
+        elif path == "/api/em/matrixial":
+            try:
+                from swa.em.integration import EMCore
+                core = EMCore.get_instance()
+                _json_response(self, core.matrixial.status())
+            except Exception as e:
+                _json_response(self, {"error": str(e)}, 500)
+
         # ── API: Latest frame for calibrator ────────────────────
         elif path == "/api/vision/latest":
             import redis as _r

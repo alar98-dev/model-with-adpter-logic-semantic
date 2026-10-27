@@ -1,0 +1,29 @@
+[Unit]
+Description=SWA Matriz Tensor UDP Rust Hot Path (OODA / AeonCell)
+Documentation=file:///services/aeon-gateway-rs/src/bin/swa_matriz_tensor_udp.rs
+After=network.target redis-server.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=alifer
+WorkingDirectory=/services/aeon-gateway-rs
+Environment=SWA_TENSOR_UDP_HOST=::1
+Environment=SWA_TENSOR_UDP_PORT=20011
+Environment=SWA_REDIS_URL=redis://[::1]:6379
+ExecStart=/services/aeon-gateway-rs/target/release/swa_matriz_tensor_udp
+Restart=always
+RestartSec=2
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/dev/shm/aeon
+MemoryHigh=64M
+MemoryMax=256M
+CPUQuota=100%
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=swa-matriz-udp-rs
+
+[Install]
+WantedBy=multi-user.target

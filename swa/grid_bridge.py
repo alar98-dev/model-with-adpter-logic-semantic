@@ -4,9 +4,10 @@ import socket
 import numpy as np
 import sys
 import os
+from swa.paths import PROJECT_ROOT
 
 # Adiciona o path do projeto para os imports funcionarem
-sys.path.append("/services/model-with-adpter-logic-semantic")
+sys.path.insert(0, str(PROJECT_ROOT))
 from swa.ipc_bus import AEON_SOCKET_PATH, pack_aeon_frame
 
 class InterdimensionalBridge:

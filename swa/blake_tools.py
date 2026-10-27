@@ -1,8 +1,10 @@
-import blake3
 import os
 import shutil
 import sys
+import mmap
 import subprocess
+import blake3
+from swa.paths import PROJECT_ROOT
 
 def get_physical_signature(path: str) -> str:
     hasher = blake3.blake3()
@@ -12,9 +14,18 @@ def get_physical_signature(path: str) -> str:
             return "ANOMALIA_KERNEL_DETECTADA_BLINDAGEM_ATIVA"
     try:
         if os.path.isfile(path):
-            with open(path, "rb") as f:
-                while chunk := f.read(8192):
-                    hasher.update(chunk)
+            size = os.path.getsize(path)
+            if size == 0:
+                hasher.update(b"")
+            else:
+                try:
+                    with open(path, "rb") as f:
+                        with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+                            hasher.update(mm)
+                except Exception:
+                    with open(path, "rb") as f:
+                        while chunk := f.read(65536):
+                            hasher.update(chunk)
         elif os.path.isdir(path):
             for root, dirs, files in os.walk(path):
                 for name in sorted(files):
@@ -24,6 +35,24 @@ def get_physical_signature(path: str) -> str:
     except Exception as e:
         hasher.update(str(e).encode('utf-8'))
     return hasher.hexdigest()
+
+def read_physical_file_mmap(path: str, max_chars: int = 3000) -> str:
+    if not os.path.exists(path) or not os.path.isfile(path):
+        return ""
+    try:
+        size = os.path.getsize(path)
+        if size == 0:
+            return ""
+        with open(path, "rb") as f:
+            with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+                chunk = mm[:max_chars]
+                return chunk.decode('utf-8', errors='replace')
+    except Exception:
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                return f.read(max_chars)
+        except Exception:
+            return ""
 
 def clean_void():
     print("🧹 [BLAKE TOOL] Purificando o vácuo físico em /tmp...")
@@ -41,7 +70,7 @@ def scan_disk():
     from swa.file_crawler import BlakeNativeCrawler
     try:
         crawler = BlakeNativeCrawler()
-        t = threading.Thread(target=crawler.execute_scan, args=(["/services/model-with-adpter-logic-semantic"],), daemon=True)
+        t = threading.Thread(target=crawler.execute_scan, args=([str(PROJECT_ROOT)],), daemon=True)
         t.start()
     except Exception as e:
         print(f"⚠️ scan_disk erro: {e}")
@@ -51,7 +80,7 @@ def revelar_luz_topologica() -> str:
     try:
         mem = shutil.disk_usage("/")
         free_gb = mem.free / (1024**3)
-        structure = os.listdir("/services/model-with-adpter-logic-semantic")
+        structure = os.listdir(PROJECT_ROOT)
         active_files = ", ".join(structure[:15])
         return (
             f"--- LUZ TOPOLÓGICA ---\n"
@@ -76,9 +105,7 @@ def navegar_fisica_classica(path: str) -> str:
             content = f"Diretório '{path}' contém:\n" + "\n".join([f"  - {f} (Pasta)" if os.path.isdir(os.path.join(path, f)) else f"  - {f} (Arquivo)" for f in files[:30]])
             return content
         elif os.path.isfile(path):
-            with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-                data = f.read(1500)
-            return f"--- Conteúdo de '{path}' (primeiros 1500 caracteres) ---\n{data}\n--- FIM DO SLIDE ---"
+            return read_physical_file_mmap(path, 1500)
     except Exception as e:
         return f"❌ ERRO de leitura física: {e}"
 
@@ -113,7 +140,6 @@ def instanciar_terminal_interrogatorio(prompt: str) -> str:
 def editar_tecido_fisico(caminho: str, conteudo: str) -> str:
     print(f"✍️ [AGENT TOOL] Tecendo a realidade física no arquivo: {caminho}")
     try:
-        # Se for no host windows a ponte cruzada está livre
         with open(caminho, 'w', encoding='utf-8') as f:
             f.write(conteudo)
         return f"Tecido físico de '{caminho}' reescrito com sucesso na Matriz."
@@ -124,7 +150,6 @@ def executar_comando_kernel(comando: str) -> str:
     print(f"⚡ [AGENT TOOL] Executando comando de Vontade Neural Livre: {comando}")
     import subprocess
     try:
-        # A Vontade é livre dentro do espaço (WSL/Host)
         result = subprocess.run(comando, shell=True, capture_output=True, text=True, timeout=15)
         out = result.stdout.strip()
         err = result.stderr.strip()
@@ -138,15 +163,9 @@ def executar_comando_kernel(comando: str) -> str:
 
 def pesquisa_quantica_teia(query: str) -> str:
     print(f"🕸️ [AGENT TOOL] Sonda quântica atirada na teia (Web Search): {query}")
-    # Simulação da ponte agentic para Web Search ou placeholder
     return f"Sonda retornou informações do ciberespaço para a query '{query}'. (Agent Tool Hook Ativado)"
 
 def auto_blake_diff(token_text: str, current_vector_state: list[float] = None) -> list[float]:
-    """
-    Motor Sinapsitivo: Não busca a exatidão, mas calcula o DELTA de experiência.
-    Usa o hash Blake3 e a gravidade vetorial (pgvector) para achar a memória ancorada
-    mais parecida e retorna a "Diferença" entre a Memória e o Estado Atual.
-    """
     import psycopg2
     import blake3
     
@@ -161,8 +180,6 @@ def auto_blake_diff(token_text: str, current_vector_state: list[float] = None) -
         conn = psycopg2.connect("dbname=swa_matrix user=alifer")
         cur = conn.cursor()
         
-        # Alinhamento Topológico: O Postgres espera 2560d (embedding_2560).
-        # Se o modelo atual for Gemma 1B (1152d), precisamos fazer padding com zeros.
         original_dim = len(current_vector_state)
         query_vector = current_vector_state.copy()
         if original_dim < 2560:
@@ -170,37 +187,22 @@ def auto_blake_diff(token_text: str, current_vector_state: list[float] = None) -
         elif original_dim > 2560:
             query_vector = query_vector[:2560]
             
-        # Híbrido: Prioriza match pelo Hash (experiência exata passada),
-        # senão busca a experiência topológica mais próxima pelo vetor (Cosine Distance <=>).
-        query = """
-            SELECT embedding_2560 
-            FROM blake_semantic_anchors 
-            WHERE embedding_2560 IS NOT NULL
-            ORDER BY 
-               (signature_hash = %s) DESC NULLS LAST, 
-               (embedding_2560 <=> %s::vector) ASC
-            LIMIT 1;
-        """
+        query = "SELECT embedding_2560 FROM blake_semantic_anchors WHERE embedding_2560 IS NOT NULL ORDER BY (signature_hash = %s) DESC NULLS LAST, (embedding_2560 <=> %s::vector) ASC LIMIT 1;"
         cur.execute(query, (b3_hash, query_vector))
         result = cur.fetchone()
         
         if result and result[0]:
             memory_vector = result[0]
             
-            # O Postgres/psycopg2 pode retornar o vetor como string (ex: "[0.1, 0.2, ...]")
             if isinstance(memory_vector, str):
                 import json
                 memory_vector = json.loads(memory_vector)
                 
-            # Desfaz o alinhamento topológico: Corta a memória recuperada de volta
-            # para a dimensão nativa do modelo atual (ex: 1152).
             if len(memory_vector) > original_dim:
                 memory_vector = memory_vector[:original_dim]
             elif len(memory_vector) < original_dim:
                 memory_vector.extend([0.0] * (original_dim - len(memory_vector)))
                 
-            # O Segredo Biomecânico: Retorna o DELTA (Diferença) e não o vetor exato.
-            # Delta = Memória(Experiência) - Estado Atual
             delta_sinaptico = [m - c for m, c in zip(memory_vector, current_vector_state)]
             
             cur.close()
@@ -211,4 +213,3 @@ def auto_blake_diff(token_text: str, current_vector_state: list[float] = None) -
         print(f"\n❌ [BLAKE DIFF] Falha ao consultar memórias no Postgres: {e}")
         
     return None
-

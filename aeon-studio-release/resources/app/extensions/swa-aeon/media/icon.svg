@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- Outer boundary of BlakeGravity -->
+  <circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" />
+  
+  <!-- High-frequency synaptic grid lines -->
+  <path d="M 12 2 L 12 22 M 2 12 L 22 12" stroke="currentColor" stroke-width="0.75" stroke-dasharray="2,2" opacity="0.5" />
+  
+  <!-- Curved synaptic quantum orbits -->
+  <path d="M 6 12 C 9 9, 15 9, 18 12 C 15 15, 9 15, 6 12 Z" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.8" />
+  <path d="M 12 6 C 9 9, 9 15, 12 18 C 15 15, 15 9, 12 6 Z" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.8" />
+  
+  <!-- Central singular neural core -->
+  <circle cx="12" cy="12" r="2.5" fill="currentColor" />
+</svg>

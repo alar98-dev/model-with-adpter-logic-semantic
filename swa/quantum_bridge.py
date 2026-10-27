@@ -1,3 +1,4 @@
+import math
 import psycopg2
 import numpy as np
 import torch
@@ -35,6 +36,7 @@ class QuantumPhaseBridge:
             self._recursive_thought_accumulator = None
             self._recursion_decay = 0.85 # Rate of dynamic evaporation of thoughts
             self._phase_theta = 0.0 # Oscilador Subconsciente (Relógio de Fase)
+            self._discrete_phase_index = 0 # Posição discreta no anel Z_60 (0 a 59)
             
             # --- APOPTOSE SEMÂNTICA (ESQUECIMENTO ATIVO NA RAM) ---
             self._cached_L = None
@@ -203,7 +205,7 @@ class QuantumPhaseBridge:
         elif x_tensor.size(0) > 2560:
             x_tensor = x_tensor[:2560]
             
-        vec_list = x_tensor.numpy().tolist()
+        vec_list = x_tensor.detach().cpu().numpy().tolist()
         
         query = """
             SELECT id, file_path, concept_group,
@@ -211,7 +213,7 @@ class QuantumPhaseBridge:
                    raw_content
             FROM blake_semantic_anchors 
             WHERE embedding_2560 IS NOT NULL
-            ORDER BY (1.0 - (embedding_2560 <=> %s::vector)) * COALESCE(weight, 1.0) DESC
+            ORDER BY (embedding_2560::halfvec(2560)) <=> %s::halfvec(2560) ASC
             LIMIT 1;
         """
         try:
@@ -253,7 +255,6 @@ class QuantumPhaseBridge:
             return None
         import hashlib
         import json
-        import math
         import os
         import time
 
@@ -355,7 +356,7 @@ class QuantumPhaseBridge:
             return
 
         try:
-            self.cursor.execute("SELECT embedding_2560, COALESCE(weight, 1.0) FROM blake_semantic_anchors WHERE embedding_2560 IS NOT NULL;")
+            self.cursor.execute("SELECT embedding_2560, COALESCE(weight, 1.0) FROM blake_semantic_anchors WHERE embedding_2560 IS NOT NULL ORDER BY id DESC LIMIT 5000;")
             rows = self.cursor.fetchall()
             if rows:
                 embeddings = [r[0] for r in rows]
@@ -495,7 +496,6 @@ class QuantumPhaseBridge:
         x_reshaped = x.view(-1, d_model // 2, 2)
         x1, x2 = x_reshaped[..., 0], x_reshaped[..., 1]
         
-        import math
         cos_theta = math.cos(theta)
         sin_theta = math.sin(theta)
         
@@ -553,7 +553,6 @@ class QuantumPhaseBridge:
                 
                 fator_desalinhamento = max(0.0, (1.0 - alinhamento))
                 
-                import math
                 variancia = float(torch.var(x_comp).item())
                 soma_ativa = float(torch.sum(x_comp).item())
                 
@@ -579,11 +578,26 @@ class QuantumPhaseBridge:
                 
                 self.current_jitter_mag = abs(jitter)
             else:
-                self.current_jitter_mag = 0.0
+                if not hasattr(self, "current_jitter_mag"):
+                    self.current_jitter_mag = 0.0
                 
-            self._phase_theta += (freq + jitter)
-            if self._phase_theta > 3.14159265 * 2:
-                self._phase_theta -= 3.14159265 * 2
+            # --- ANEL MODULAR Z_60 (BASE 60 SUMÉRIA: 2π / 60 = 6°) ---
+            discrete_step = (2.0 * math.pi) / 60.0
+            step_jump = 1
+            if getattr(self, "current_jitter_mag", 0.0) > 0.5:
+                step_jump = 2  # Salto de fase sob alta tensão térmica
+
+            old_idx = getattr(self, "_discrete_phase_index", 0)
+            new_idx = (old_idx + step_jump) % 60
+            self._discrete_phase_index = new_idx
+            self._phase_theta = new_idx * discrete_step
+
+            # --- FECHAMENTO DO CICLO OUROBOROS (O GRANDE RETORNO: 360° -> 0°) ---
+            if new_idx < old_idx:
+                self.great_cycles_count = getattr(self, "great_cycles_count", 0) + 1
+                self._execute_ouroboros_reset()
+
+            self._publish_shm_phase(amplitude=getattr(self, "current_jitter_mag", 0.0))
             
             # Clamp shape to dynamic gold dimensions
             x_tensor = current_thought_vector.detach().clone().view(-1)
@@ -607,6 +621,69 @@ class QuantumPhaseBridge:
                     self._recursive_thought_accumulator = self._recursive_thought_accumulator / n
         except Exception as e:
             print(f"⚠️ [RECURSION ERROR] Failed to feed recursive vector: {e}")
+
+    def _execute_ouroboros_reset(self) -> None:
+        """Executa a purga de apoptose e o selamento do Grande Ciclo Sexagesimal (360° -> 0°)."""
+        try:
+            import json, os, time
+            cycle_id = getattr(self, "great_cycles_count", 1)
+            print(f"🌌 [OUROBOROS: GRANDE CICLO #{cycle_id}] Consumação de 360°. Retorno ao Vácuo Primordial (0°). Purificando tensores...")
+
+            # 1. Apoptose de memória: atenua o acumulador recursivo para prevenir acúmulo de viés
+            if self._recursive_thought_accumulator is not None:
+                self._recursive_thought_accumulator = self._recursive_thought_accumulator * 0.5
+
+            # 2. Emissão do manifesto de renovação no SHM
+            ouro_data = {
+                "great_cycle_id": cycle_id,
+                "completed_at": time.time(),
+                "status": "CYCLE_COMPLETED_MEMORY_PURIFIED",
+                "total_houses_navigated": cycle_id * 60,
+                "reboot_realm": 1,
+                "reboot_house": 1,
+            }
+            ouro_path = "/dev/shm/aeon/ouroboros_cycle.json"
+            tmp = f"{ouro_path}.tmp"
+            os.makedirs(os.path.dirname(ouro_path), exist_ok=True)
+            with open(tmp, "w") as f:
+                json.dump(ouro_data, f)
+            os.replace(tmp, ouro_path)
+        except Exception as e:
+            pass
+
+    def _publish_shm_phase(self, amplitude: float = 0.0) -> None:
+        """Publica atomicamente o estado da fase no anel Z_60 no buffer compartilhado /dev/shm."""
+        try:
+            import json, os, time
+            idx = getattr(self, "_discrete_phase_index", 0)
+            house_id = idx + 1
+            realm_id = (idx // 10) + 1
+            step_idx = (idx % 10) + 1
+            phase_deg = idx * 6.0
+
+            payload = {
+                "phase_index": idx,
+                "house_id": house_id,
+                "realm_id": realm_id,
+                "step_index": step_idx,
+                "phase_deg": phase_deg,
+                "theta": self._phase_theta,
+                "amplitude": float(amplitude),
+                "timestamp": time.time(),
+                "shm_channel": "aeon_phase_ring_z60",
+            }
+
+            for path in ["/dev/shm/aeon/sexagesimal_phase.json", "/dev/shm/aeon_phase_ring.json"]:
+                try:
+                    os.makedirs(os.path.dirname(path), exist_ok=True)
+                    tmp_path = f"{path}.tmp"
+                    with open(tmp_path, "w") as f:
+                        json.dump(payload, f)
+                    os.replace(tmp_path, path)
+                except Exception:
+                    pass
+        except Exception as e:
+            pass
 
     def deform_semantic_manifold(self, device="cpu") -> None:
         """

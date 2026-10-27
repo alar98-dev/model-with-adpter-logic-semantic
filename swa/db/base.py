@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -18,11 +19,20 @@ class BaseController:
     unreachable.
     """
 
-    _RAM_DATABASE: Dict[str, List[Dict[str, Any]]] = {}
+    _RAM_DATABASE: Dict[str, List[Dict[str, Any]]] = {
+        "swa_episodic_episodes": [],
+        "matrix_system_state": [],
+        "swa_eventual_embeddings": [],
+    }
 
     def __init__(self, db_uri: str = "dbname=swa_matrix host=/var/run/postgresql user=alifer"):
         self.db_uri = db_uri
         self._db_active: Optional[bool] = None
+        self._logger = logging.getLogger(f"swa.db.{self.__class__.__name__}")
+
+    def _record_db_error(self, operation: str, exc: Exception) -> None:
+        """Make degraded DB paths observable without failing the hot path."""
+        self._logger.warning("%s failed; using RAM fallback: %s", operation, exc)
 
     # ── Connection management ───────────────────────────────────────────
 

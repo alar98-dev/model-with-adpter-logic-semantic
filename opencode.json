@@ -4,11 +4,13 @@
     "swa-aeon": {
       "name": "SWA AEON Core",
       "options": {
-        "baseURL": "http://127.0.0.1:20000/v1"
+        "baseURL": "http://127.0.0.1:8050/v1",
+        "apiKey": "sk-aeon-local",
+        "timeout": 900000
       },
       "models": {
-        "gemma-3-1b-it": {
-          "name": "Gemma 3 1B IT (AeonC Core)"
+        "aeon-gemma3-1b": {
+          "name": "Gemma 3 1B IT — AEON Gateway"
         }
       }
     }

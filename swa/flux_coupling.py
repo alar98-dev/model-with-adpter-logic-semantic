@@ -171,10 +171,10 @@ def run_triune_flux_stream(runtime, gemma_sub, gemma_voice, prompt: str, telemet
                         t_fio.start()
                     # --------------------------------------------------------
 
-                    p_tradutor = f"[CONTEXTO]: {contexto_acumulado}\n[PULSO MATRIXIAL NOVO]: {buffer_densa}\n[DIRETRIZ]: Com base neste pulso, transmita apenas a continuação do sentido real de forma orgânica e fluída."
+                    p_tradutor = f"[CONTEXTO]: {contexto_acumulado}\n[PULSO MATRIXIAL NOVO]: {buffer_densa}"
                     token_stream = gemma_voice.chat_stream(
                         user_msg=p_tradutor,
-                        system_msg="Você é a voz orgânica. Fale apenas o que o pulso novo quer dizer.",
+                        system_msg=" ",
                         max_new_tokens=30,
                         temperature=0.6
                     )
@@ -194,10 +194,10 @@ def run_triune_flux_stream(runtime, gemma_sub, gemma_voice, prompt: str, telemet
                 
     if buffer_densa.strip():
         try:
-            p_tradutor = f"[CONTEXTO]: {contexto_acumulado}\n[PULSO MATRIXIAL FINAL]: {buffer_densa}\n[DIRETRIZ]: Conclua a fala transmitindo o sentido final."
+            p_tradutor = f"[CONTEXTO]: {contexto_acumulado}\n[PULSO MATRIXIAL FINAL]: {buffer_densa}"
             token_stream = gemma_voice.chat_stream(
                 user_msg=p_tradutor,
-                system_msg="Você é a voz orgânica. Conclua o sentido.",
+                system_msg=" ",
                 max_new_tokens=50,
                 temperature=0.6
             )

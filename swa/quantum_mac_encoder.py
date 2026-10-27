@@ -16,11 +16,11 @@ class QuantumMACEncoder:
 
     def ancorar_no_cortex(self, weight_library):
         """
-        Transforma a assinatura MAC em vetor 640D na IDKB.
+        Ancora o núcleo na gravidade fractal da layer 0 das embeddings
+        aprendidas (640D real). O valor MAC não é mais semente vetorial —
+        referência estática clássica removida.
         """
-        mac = self.extrair_assinatura_fisica()
-        weight_library.ancorar_dna_hardware(mac)
-        return mac
+        return weight_library.ancorar_gravidade_fractal()
 
 if __name__ == "__main__":
     import sys

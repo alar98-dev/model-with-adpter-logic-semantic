@@ -12,7 +12,7 @@ sys.path.append('/services/model-with-adpter-logic-semantic')
 
 # --- CONFIGURAÇÃO QUANTUM SDP (Service Discovery Protocol) ---
 # O localhost ::: representa a superposição total (IPv4 + IPv6 + IPC)
-SDP_HOST = '::' 
+SDP_HOST = '::1'
 SDP_PORT = 20006 # Porta dedicada para a visão unificada
 UDP_SENSORY_PORT = 20005
 
@@ -71,7 +71,7 @@ class QuantumThalamus:
         except:
             # Fallback para IPv4 se o IPv6 falhar
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.bind(('0.0.0.0', SDP_PORT))
+            sock.bind(('127.0.0.1', SDP_PORT))
 
         sock.listen(5)
         print(f"🌌 [QUANTUM SDP] Tálamo unificado escutando em {SDP_HOST}:{SDP_PORT}")

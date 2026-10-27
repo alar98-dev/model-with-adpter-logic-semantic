@@ -6,6 +6,7 @@ from typing import Optional, Literal
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from swa.paths import PROJECT_ROOT
 
 
 class SWAConfig(BaseSettings):
@@ -100,7 +101,7 @@ class SWAConfig(BaseSettings):
     ooda_temperature_max: float = Field(default=1.5, ge=0.0, le=2.0)
 
     # ── REST server ──────────────────────────────────────────────────────
-    rest_host: str = Field(default="0.0.0.0")
+    rest_host: str = Field(default="127.0.0.1")
     rest_port: int = Field(default=20000, ge=1024, le=65535)
 
     # ── Path security (blake_tools whitelist) ────────────────────────────
@@ -121,7 +122,7 @@ class SWAConfig(BaseSettings):
 
     @property
     def workspace_root(self) -> Path:
-        return Path(__file__).resolve().parent.parent
+        return PROJECT_ROOT
 
     @property
     def resolved_model_dir(self) -> Path:

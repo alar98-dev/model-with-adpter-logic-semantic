@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# SWA AEON STUDIO — LANÇADOR NATIVO INTEGRADO COM CÓRTEX & VSCODE
+# ==============================================================================
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export AEON_STUDIO_ROOT="$(dirname "$SCRIPT_DIR")"
+export AEON_SHM_PATH="/dev/shm/swa_aeon_shm.bin"
+export AEON_ADAPTERS_PATH="$AEON_STUDIO_ROOT/resources/neural_adapters"
+
+echo "⚡ [SWA AEON STUDIO] Verificando integridade do Córtex..."
+
+# 1. Garante que o buffer de memória compartilhada /dev/shm exista
+if [ ! -f "$AEON_SHM_PATH" ]; then
+    python3 -c "with open('$AEON_SHM_PATH', 'wb') as f: f.write(b'\x00'*1024)" 2>/dev/null || true
+fi
+
+# 2. Garante que o serviço do Córtex esteja rodando
+if ! systemctl is-active --quiet swa-aeonc.service; then
+    echo "⚡ [SWA AEON STUDIO] Inicializando swa-aeonc.service..."
+    sudo systemctl start swa-aeonc.service
+fi
+
+echo "⚡ [SWA AEON STUDIO] Conectando IDE ao Córtex Neural..."
+
+# 3. Lança a interface gráfica do editor apontando para a pasta ou workspace atual
+TARGET_DIR="${1:-.}"
+
+# Se estiver no WSL, invoca o binário do Windows passando o diretório alvo
+if command -v code.exe >/dev/null 2>&1; then
+    code.exe "$TARGET_DIR"
+elif command -v code >/dev/null 2>&1; then
+    code "$TARGET_DIR"
+fi
+
+echo "✅ SWA Aeon Studio conectado e operante no workspace: $TARGET_DIR"

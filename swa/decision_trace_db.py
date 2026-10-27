@@ -86,8 +86,32 @@ def persist_part_trace(
     metadata: Optional[dict] = None,
     full_text: str = "",
 ):
-    full = full_text or text_snippet or ""
-    sem_emb = semantic_embed(full[:2000])
+    # --- TOKEN MODULAR DA BASE 60 (SUBSTITUI TEXTOS PESADOS POR TUPLA DE FASE) ---
+    reino_id = 1
+    casa_id = 1
+    amplitude = 0.0
+    try:
+        with open("/dev/shm/aeon/sexagesimal_phase.json", "r") as sf:
+            shm_info = json.load(sf)
+            reino_id = int(shm_info.get("realm_id", 1))
+            casa_id = int(shm_info.get("house_id", 1))
+            amplitude = float(shm_info.get("amplitude", 0.0))
+    except Exception:
+        if blake_signature and len(blake_signature) >= 6:
+            reino_id = (max(range(6), key=lambda i: abs(blake_signature[i])) % 6) + 1
+            amplitude = sum(abs(v) for v in blake_signature) / 6.0
+            casa_id = ((reino_id - 1) * 10) + int(min(9, amplitude * 10)) + 1
+
+    phase_token_str = f"PHASE_TOKEN:({reino_id},{casa_id},{amplitude:.4f})"
+    meta = metadata or {}
+    meta.update({
+        "reino_id": reino_id,
+        "casa_id": casa_id,
+        "amplitude": round(amplitude, 4),
+        "phase_deg": (casa_id - 1) * 6.0,
+        "modular_token": True
+    })
+
     entry = {
         "session_id": session_id,
         "part_id": part_id,
@@ -98,13 +122,14 @@ def persist_part_trace(
         "blake_signature": _vec_str(blake_signature),
         "geometry_centroid": _vec_str(geometry_centroid) if geometry_centroid else None,
         "geometry_span": _vec_str(geometry_span) if geometry_span else None,
-        "text_snippet": (text_snippet or full)[:200],
+        # The phase token is metadata; the emitted text remains replayable.
+        "text_snippet": text_snippet or phase_token_str,
         "token_count": token_count,
         "tool_name": tool_name,
         "finish_reason": finish_reason,
-        "metadata": json.dumps(metadata or {}),
-        "full_text": full[:5000],
-        "semantic_embedding": _vec_str(sem_emb),
+        "metadata": json.dumps(meta),
+        "full_text": full_text or text_snippet or phase_token_str,
+        "semantic_embedding": None,
     }
     with _BATCH_LOCK:
         _BATCH.append(entry)
@@ -135,7 +160,7 @@ def _flush_batch():
                     CASE WHEN %(geometry_span)s IS NOT NULL THEN %(geometry_span)s::vector ELSE NULL END,
                     %(text_snippet)s, %(token_count)s, %(tool_name)s,
                     %(finish_reason)s, %(metadata)s::jsonb,
-                    %(full_text)s, %(semantic_embedding)s::vector)
+                    %(full_text)s, CASE WHEN %(semantic_embedding)s IS NOT NULL THEN %(semantic_embedding)s::vector ELSE NULL END)
                    ON CONFLICT (part_id) WHERE part_id IS NOT NULL AND part_id != ''
                    DO UPDATE SET
                        classification = EXCLUDED.classification,
@@ -252,11 +277,11 @@ def search_similar(
                 "trace_class": r[4],
                 "blake_signature": _parse_vec(r[5]),
                 "geometry_centroid": _parse_vec(r[6]) if r[6] else None,
-                "text_snippet": (r[7] or "")[:100],
+                "text_snippet": r[7] or "",
                 "token_count": r[8],
                 "tool_name": r[9],
                 "created_at": str(r[10]) if r[10] else "",
-                "full_text": (r[11] or "")[:500],
+                "full_text": r[11] or "",
                 "distance": float(r[12]),
             }
             for r in rows
@@ -305,8 +330,8 @@ def search_semantic(query: str, k: int = 5, classification: Optional[str] = None
                 "classification": r[2],
                 "part_type": r[3],
                 "trace_class": r[4],
-                "text_snippet": (r[5] or "")[:100],
-                "full_text": (r[6] or "")[:500],
+                "text_snippet": r[5] or "",
+                "full_text": r[6] or "",
                 "token_count": r[7],
                 "tool_name": r[8],
                 "created_at": str(r[9]) if r[9] else "",
@@ -344,11 +369,11 @@ def get_latest_traces(limit: int = 20, classification: Optional[str] = None) -> 
                 "part_type": r[3],
                 "trace_class": r[4],
                 "blake_signature": _parse_vec(r[5]),
-                "text_snippet": (r[6] or "")[:100],
+                "text_snippet": r[6] or "",
                 "token_count": r[7],
                 "tool_name": r[8],
                 "created_at": str(r[9]) if r[9] else "",
-                "full_text": (r[10] or "")[:500],
+                "full_text": r[10] or "",
             }
             for r in rows
         ]

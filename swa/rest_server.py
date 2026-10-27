@@ -1,10 +1,13 @@
 import sys; sys.path.append("/services/model-with-adpter-logic-semantic")
+import json
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import torch
 import torch.nn.functional as F
 import os
+import re
+import time
 from swa.gemma_integration import CORTEX_QUANTIZED_BUFFER
 from swa.logical_engine import LogicalEngine
 from swa.tokenizer_manager import TokenizerManager
@@ -53,6 +56,7 @@ def get_logical_engine():
 
 class ChatPayload(BaseModel):
     prompt: str
+    telemetry: bool = False
 
 @app.post("/api/v1/chat")
 async def chat_stream(payload: ChatPayload):
@@ -62,10 +66,39 @@ async def chat_stream(payload: ChatPayload):
         
         def generator():
             # Run the optimized stream (Collatz-7 and Happy-7 OODA active)
+            sequence = 0
             for token in engine.run_optimized_stream(payload.prompt):
-                yield token
-                
-        return StreamingResponse(generator(), media_type="text/event-stream")
+                if not payload.telemetry:
+                    yield token
+                    continue
+                text = str(token)
+                sequence += 1
+                if "FISSÃO" in text:
+                    event_type = "fission"
+                    phase = "fissao"
+                elif "Onda Híbrida" in text:
+                    event_type = "wave_start"
+                    phase = "inicio"
+                elif "Onda Concluída" in text:
+                    event_type = "wave_end"
+                    phase = "fim"
+                else:
+                    event_type = "token"
+                    phase = "meio"
+                event = {
+                    "type": event_type,
+                    "sequence": sequence,
+                    "phase": phase,
+                    "wave": getattr(getattr(engine, "fission", None), "total_fissions", 0),
+                    "text": text,
+                    "timestamp": time.time(),
+                }
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+        return StreamingResponse(
+            generator(),
+            media_type="text/event-stream" if payload.telemetry else "text/plain",
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -165,7 +198,12 @@ async def find_common_state_quantized():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=20001, log_level="warning")
+    uvicorn.run(
+        app,
+        host=os.environ.get("SWA_REST_HOST", "127.0.0.1"),
+        port=int(os.environ.get("SWA_REST_PORT", "20001")),
+        log_level="warning",
+    )
 
 from fastapi import WebSocket
 

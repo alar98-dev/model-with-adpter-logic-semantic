@@ -9,7 +9,7 @@ Group=alifer
 WorkingDirectory=/services/model-with-adpter-logic-semantic
 # Executa o servidor MCP utilizando uvicorn diretamente
 Environment="PYTHONUNBUFFERED=1"
-ExecStart=/services/model-with-adpter-logic-semantic/venv/bin/python -m uvicorn mcp_gateway.server:app --host 0.0.0.0 --port 8000
+ExecStart=/services/model-with-adpter-logic-semantic/venv/bin/python -m uvicorn mcp_gateway.server:app --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=5
 

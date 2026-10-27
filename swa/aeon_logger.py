@@ -1,13 +1,14 @@
 import threading
 import os
 import sys
+from swa.paths import project_path
 try:
     from systemd import journal
     _HAS_JOURNAL = True
 except Exception:
     _HAS_JOURNAL = False
 
-_AEON_LOG_PATH = "/services/model-with-adpter-logic-semantic/swa_Aeon.log"
+_AEON_LOG_PATH = str(project_path("swa_Aeon.log"))
 _lock = threading.Lock()
 
 

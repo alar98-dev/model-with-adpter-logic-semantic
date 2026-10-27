@@ -1,0 +1,11 @@
+[package]
+name = "aeon-ooda-rs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = "0.4.45"
+memmap2 = "0.9.11"
+redis = "1.2.2"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"

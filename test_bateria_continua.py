@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+import bootstrap_matrix; bootstrap_matrix.bootstrap_projection()
 
 sys.path.insert(0, '/home/alifer/swa-aeon')
 from aeonc import AeonCore

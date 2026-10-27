@@ -4,6 +4,7 @@ import torch
 import hashlib
 import psycopg2
 import math
+from swa.paths import PROJECT_ROOT
 
 class BlakeNativeCrawler:
     def __init__(self):
@@ -152,7 +153,7 @@ class BlakeNativeCrawler:
 
 if __name__ == "__main__":
     diretorios = [
-        "/services/model-with-adpter-logic-semantic",
+        str(PROJECT_ROOT),
         "swa_validation_tests",
         "/mnt/c/Users/alifer.ramos/Documents"
     ]

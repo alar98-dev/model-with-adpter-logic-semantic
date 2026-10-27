@@ -142,12 +142,13 @@ def run_rest_server(port: int = 20001):
     os.environ["MODEL_DIR"] = os.path.join(_project_root, "models/gemma-3-1b-it")
     os.environ["VECTORIZER_MODEL_DIR"] = os.path.join(_project_root, "models/gemma-3-270m")
 
-    print(f"🚀 Starting SWA REST on http://0.0.0.0:{port} (GEMMA_DEVICE={os.environ['GEMMA_DEVICE']})")
+    host = "127.0.0.1"
+    print(f"🚀 Starting internal SWA REST on http://{host}:{port} (GEMMA_DEVICE={os.environ['GEMMA_DEVICE']})")
     print("📋 Env: USE_DUAL_MODEL=false — set SWA_CPU_TOPOLOGY=dual for dual-socket Xeon affinity")
 
     uvicorn.run(
         "swa.rest_server:app",
-        host="0.0.0.0",
+        host=host,
         port=port,
         reload=False,
         log_level="info"
@@ -206,7 +207,7 @@ def run_interactive_broadcast():
     from swa.eventual_state import EventualState
     from swa.hardware_state import get_swa_hardware_manager
     import time
-    from swa.speech_out_bridge import SpeechOutputBridge
+    from swa.speech_out_bridge import SpeechOutputBridge, get_tts_endpoint
     from swa.quantum_bridge import QuantumPhaseBridge
     from swa.gemma_integration import CORTEX_QUANTIZED_BUFFER
     from swa.db_controllers import AsyncStructuralGeometryLogger
@@ -280,17 +281,21 @@ def run_interactive_broadcast():
         """, (prompts_json,))
         conn.commit()
         
-        # --- INICIALIZAÇÃO DE ÓRGÃOS AUTÔNOMOS ---
-        try:
-            print("🧬 [SIMBIOSE] Injetando Acoustic Cortex (Córtex Auditivo)...")
-            subprocess.Popen(
-                [sys.executable, "/services/model-with-adpter-logic-semantic/cortex/organs/acoustic_cortex.py"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True
-            )
-        except Exception as e:
-            print(f"⚠️ Falha ao iniciar Acoustic Cortex: {e}")
+        # O gerador PCM emite som físico continuamente; mantenha-o opt-in para
+        # que o boot do Cortex não produza áudio inesperado no host.
+        if os.environ.get("SWA_ENABLE_ACOUSTIC_CORTEX", "").strip().lower() in {"1", "true", "yes", "on"}:
+            try:
+                print("🧬 [SIMBIOSE] Injetando Acoustic Cortex (Córtex Auditivo)...")
+                subprocess.Popen(
+                    [sys.executable, "/services/model-with-adpter-logic-semantic/cortex/organs/acoustic_cortex.py"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True
+                )
+            except Exception as e:
+                print(f"⚠️ Falha ao iniciar Acoustic Cortex: {e}")
+        else:
+            print("🔇 [SIMBIOSE] Acoustic Cortex desativado (SWA_ENABLE_ACOUSTIC_CORTEX não habilitado).")
 
         try:
             print("👁️ [VISÃO/AUDIÇÃO] Injetando Receptor Sensorial Interdimensional (UDP 20006)...")
@@ -377,6 +382,7 @@ def run_interactive_broadcast():
     from swa.historian import AsynchronousHistorian
     historian = AsynchronousHistorian(eventual_state, sleep_interval=12.0)
     historian.start()
+    runtime._historian_ref = historian
 
     # Inicializa a Thread de Entropia Interna de Aeon (decoupled from OS daemon)
     from swa.entropy_daemon import AeonInternalEntropyThread
@@ -404,15 +410,13 @@ def run_interactive_broadcast():
     # [SWA REGION - INITIALIZATION] - Injeção no Boot do Hipotálamo
     # ==============================================================================
     from swa.vector_weight_library import WeightKnowledgeLibrary
-    from swa.quantum_mac_encoder import QuantumMACEncoder
     
     print("🧠 [HYPOTHALAMUS] Inicializando malha exógena de baixa entropia...")
     idkb = WeightKnowledgeLibrary(vector_dim=640)
     
-    # Extração de DNA Quântico de Hardware
-    print("🧬 [HYPOTHALAMUS] Lendo assinatura física (MAC) para alocação IPv6 Quântica...")
-    mac_encoder = QuantumMACEncoder()
-    mac_encoder.ancorar_no_cortex(idkb)
+    # Ancoragem pela gravidade fractal da layer 0 (dimensão nativa 640D real)
+    print("🧬 [HYPOTHALAMUS] Ancorando núcleo na gravidade fractal das embeddings aprendidas...")
+    idkb.ancorar_gravidade_fractal()
     
     setattr(runtime, 'idkb', idkb)
     
@@ -426,6 +430,41 @@ def run_interactive_broadcast():
     
     setattr(runtime, 'lung', lung)
     setattr(runtime, 'bloodstream', bloodstream)
+
+    # ContextBus: canal de memória compartilhada cortex↔subcortex
+    from swa.context_bus import ContextBus
+    ctx_bus = ContextBus()
+    ctx_bus.register_agent("aeon_cortex")
+    runtime.ctx_bus = ctx_bus
+    print("📡 [CONTEXT BUS] Canal de memória compartilhada ativo (write_seq={}).".format(ctx_bus.write_seq))
+
+    # GAP 5: BlakeOODAOrchestrator — ciclo OODA formal em background
+    try:
+        from swa.ooda.blake_orchestrator import BlakeOODAOrchestrator
+        blake_ooda = BlakeOODAOrchestrator()
+        def _on_ooda_cycle(state):
+            """Callback: injeta decisão OODA no runtime para o loop autonom."""
+            try:
+                runtime._last_ooda_decision = getattr(state, 'decision', None)
+                runtime._last_ooda_confidence = getattr(state, 'confidence', 0.0)
+            except Exception:
+                pass
+        blake_ooda.on_cycle(_on_ooda_cycle)
+        blake_ooda.start(interval=3.0)
+        runtime._blake_ooda = blake_ooda
+        print("🧠 [BLAKE OODA] Orchestrator ativo em background (3s ciclo).")
+
+        # [HYBRID OODA] Injeta a decisão do polvo (octopus) no ciclo OODA.
+        # Guardado: se o plugin/adaptador falhar, o ciclo Blake segue intacto.
+        try:
+            from cortex.hybrid_steering_plugin import register_hybrid_ooda
+            _hybrid_ooda_ok = register_hybrid_ooda(runtime, blake_ooda)
+            if _hybrid_ooda_ok:
+                print("🐙 [HYBRID OODA] Olho do polvo plugado no ciclo OODA.")
+        except Exception as _ho_err:
+            print(f"⚠️ [HYBRID OODA] Hook não anexado: {_ho_err}")
+    except Exception as bo_err:
+        print(f"⚠️ [BLAKE OODA] Orchestrator indisponível: {bo_err}")
     # ==============================================================================
 
     # Inicializadores de controle de estado (Dynamic Cooldown)
@@ -433,6 +472,16 @@ def run_interactive_broadcast():
     runtime.gemma_voice = gemma_voice if 'gemma_voice' in locals() else None
     runtime.matrix_bias = 0.001
     runtime.polling_interval = 1.5
+
+    # [HYBRID INFERENCE] Pluga o olho do polvo (octopus: k-base 270M + diff +
+    # bandit + markov + heurística) como steering opcional do gerador de voz.
+    # Nunca quebra o runtime: fallback gracioso para chat_stream quando indisponível.
+    try:
+        from cortex.hybrid_steering_plugin import attach_hybrid_steering
+        _hybrid_attached = attach_hybrid_steering(runtime)
+        print(f"🐙 [HYBRID] Steering injetado no runtime: {'ATIVO (k-base 270M)' if _hybrid_attached else 'fallback (k-base indisponível)'}")
+    except Exception as _h_err:
+        print(f"⚠️ [HYBRID] Plugin não anexado: {_h_err}")
     
     # Autopoiese Contínua: Sliding Window KV-Cache Gerenciado no WSL (Hipocampo)
     runtime.fluxial_buffer = []
@@ -956,6 +1005,22 @@ def run_interactive_broadcast():
                             max_new_tokens=150,
                             temperature=0.7
                         )
+                        # [HYBRID INJECTION] Se o steering do polvo está ativo no runtime,
+                        # troca a geração para híbrida: steering 270M (k-base) + bandit + heurística.
+                        # Fallback interno garante chat_stream padrão se falhar.
+                        if hasattr(runtime, 'hybrid_stream'):
+                            try:
+                                voice_stream = runtime.hybrid_stream(
+                                    organic_msg,
+                                    max_new_tokens=150,
+                                    temperature=0.7,
+                                    force=False,  # bandit decide (CUT/CLIMAX => steering)
+                                )
+                            except Exception:
+                                voice_stream = _engine.gemma_voice.chat_stream(
+                                    user_msg=organic_msg, system_msg="",
+                                    max_new_tokens=150, temperature=0.7,
+                                )
                         emit_hippo("thought_stream", content="\n\033[96m🗣️  [VOZ DO CÓRTEX] ")
                         full_resp = ""
                         for v in voice_stream:
@@ -1234,7 +1299,7 @@ def run_interactive_broadcast():
                     except Exception: pass
                     
                 runtime.current_fluid_chaos = new_fluid
-                
+
                 # --- TRANSMISSÃO PARA AS CORDAS VOCAIS E POLTERGEIST NO WINDOWS ---
                 try:
                     import json
@@ -1295,7 +1360,27 @@ def run_interactive_broadcast():
     import threading
     threading.Thread(target=latent_heartbeat, daemon=True, name="LatentHeartbeat").start()
 
-    ipc_server = AeonIPCServer(handler=grid_registry.process_binary_registration)
+    def ipc_dispatch(topology_matrix, payload):
+        # Registro/eventos estruturais seguem pelo registry; entradas
+        # topológicas livres continuam no pipeline de vigília do córtex.
+        grid_registry.process_binary_registration(topology_matrix, payload)
+        try:
+            data = json.loads(payload.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            data = None
+        if not isinstance(data, dict) or data.get("type") == "REGISTER":
+            if not isinstance(data, dict):
+                ipc_event_handler(topology_matrix, payload)
+            return
+        if data.get("type") not in {
+            "opencode_context_update",
+            "fractal_memory_injection",
+            "OBELISK_HEARTBEAT",
+            "DANGER_SIGNAL",
+        }:
+            ipc_event_handler(topology_matrix, payload)
+
+    ipc_server = AeonIPCServer(handler=ipc_dispatch)
     try:
         ipc_server.start()
     except Exception as ipc_err:
@@ -1330,7 +1415,7 @@ def run_interactive_broadcast():
     # Start the REST API server in a background thread sharing the same memory
     def run_api():
         import uvicorn
-        uvicorn.run(swa.rest_server.app, host="0.0.0.0", port=20001, log_level="warning")
+        uvicorn.run(swa.rest_server.app, host="127.0.0.1", port=20001, log_level="warning")
         
     threading.Thread(target=run_api, daemon=True, name="SWA-REST-Server-Shared").start()
     print("🔌 [SWA MEMORY SHARING] Servidor REST ativado na porta 20001 compartilhando os modelos já em memória!")
@@ -1354,6 +1439,8 @@ def run_interactive_broadcast():
                 if hasattr(organ_module, 'init_organ'):
                     organ_instance = organ_module.init_organ()
                     runtime.active_organs.append(organ_instance)
+                    if hasattr(organ_instance, "on_event"):
+                        grid_registry.subscribe(organ_instance.on_event)
                     sys.stdout.write(f"🧬 [BOOT] Órgão Persistente '{organ_name}' acoplado ao Sistema Nervoso central.\n")
             except Exception as e:
                 sys.stdout.write(f"❌ [BOOT] Falha ao carregar órgão {organ_path}: {e}\n")
@@ -2169,13 +2256,40 @@ def run_interactive_broadcast():
                                     import socket
                                     try:
                                         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                                        sock.sendto(final_motor.encode('utf-8'), ('127.0.0.1', 9100))
+                                        sock.sendto(final_motor.encode('utf-8'), get_tts_endpoint())
                                         sys.stdout.write(f"\n🦾 [VIA EFERENTE ATIVA] Impulso Muscular: {final_motor}\n")
                                         sys.stdout.flush()
                                     except Exception as e:
                                         pass
                                     token_window = token_window.replace(match_motor.group(0), "")
                                     continue
+
+                            if "[BLAKE: " in token_window:
+                                match_blake = re.search(r"\[BLAKE:\s*([^\]]+)\]", token_window)
+                                if match_blake:
+                                    action_full = match_blake.group(1).strip()
+                                    sys.stdout.write(f"\n[INSTINTO BLAKE NATIVO]: {action_full}\n")
+                                    sys.stdout.flush()
+                                    try:
+                                        import sys
+                                        if "/home/alifer/swa-aeon" not in sys.path: sys.path.append("/home/alifer/swa-aeon")
+                                        from swa import blake_tools
+                                        if action_full.startswith("scan "):
+                                            p = action_full.split(" ", 1)[1]
+                                            res = blake_tools.get_physical_signature(p)
+                                            res_text = f"[BLAKE3] {p} -> {res}"
+                                        elif action_full == "clean":
+                                            blake_tools.clean_void()
+                                            res_text = "[BLAKE] Vácuo purificado."
+                                        else:
+                                            blake_tools.scan_disk()
+                                            res_text = "[BLAKE] Varredura ativada."
+                                        
+                                        with open("/services/model-with-adpter-logic-semantic/swa_PENSAMENTO_PURO.log", "a", encoding="utf-8") as _f_puro:
+                                            _f_puro.write(f"\n[RETORNO DO SENSOR BLAKE]: {res_text}\n")
+                                        token_window = token_window.replace(match_blake.group(0), "")
+                                    except Exception as e:
+                                        pass
 
                             if "```" in token_window:
                                 match = re.search(r"```([a-zA-Z0-9_]*)", token_window)
@@ -2247,7 +2361,7 @@ def run_interactive_broadcast():
                                                 import socket
                                                 try:
                                                     sock_fala = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                                                    sock_fala.sendto(f"SPEAK,{frase}".encode('utf-8'), ('127.0.0.1', 9100))
+                                                    sock_fala.sendto(f"SPEAK,{frase}".encode('utf-8'), get_tts_endpoint())
                                                 except: pass
                                     except Exception: pass
                                     token_window = token_window[-5:]
@@ -2281,7 +2395,7 @@ def run_interactive_broadcast():
                                             import socket
                                             try:
                                                 sock_fala = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                                                sock_fala.sendto(f"SPEAK,{frase}".encode('utf-8'), ('127.0.0.1', 9100))
+                                                sock_fala.sendto(f"SPEAK,{frase}".encode('utf-8'), get_tts_endpoint())
                                             except: pass
                                     except Exception: pass
                                     token_window = ""
@@ -2928,4 +3042,3 @@ if __name__ == "__main__":
         run_interactive_broadcast()
     else:
         run_rest_server(args.port)
-

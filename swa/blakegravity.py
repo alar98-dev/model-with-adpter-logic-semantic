@@ -27,6 +27,7 @@ import math
 import numpy as np
 import torch
 import logging
+import hashlib
 
 logger = logging.getLogger('BlakeGravity')
 
@@ -97,6 +98,9 @@ class BlakeGravity:
         # Halo: sparse arrays de (token_id, weight)
         self._halo_ids = None     # np.array de token IDs
         self._halo_weights = None # np.array de pesos (+force ou -force)
+        self._context_halo_ids = None
+        self._context_halo_weights = None
+        self._context_cache = {}
 
         # Fallback denso (se halo não disponível)
         self.soul_bias = None
@@ -216,7 +220,7 @@ class BlakeGravity:
             batch_emb = batch_emb / batch_norms
             # Similaridade cosseno
             sims = torch.mm(batch_emb, soul_embedding.unsqueeze(1).float()).squeeze()
-            all_sims[start:end] = sims.cpu().numpy()
+            all_sims[start:end] = sims.detach().cpu().numpy()
 
         # 3. Extrai top-N aligned e top-N opposed
         halo_n = self.HALO_SIZE
@@ -296,7 +300,41 @@ class BlakeGravity:
             else:
                 logits = logits + bias_tensor.unsqueeze(0) * strength
 
+        if self._context_halo_ids is not None and self._context_halo_weights is not None:
+            context_bias = self._context_halo_weights * strength
+            if logits.dim() == 1:
+                logits[self._context_halo_ids] += context_bias
+            else:
+                logits[:, self._context_halo_ids] += context_bias.unsqueeze(0)
+
         return logits
+
+    def activate_context_vector(self, context_vector: torch.Tensor, embeddings_weight: torch.Tensor) -> str:
+        """Activate a cached sparse field derived from the current context."""
+        vector = context_vector.detach().to(embeddings_weight.device, dtype=torch.float32).reshape(-1)
+        if vector.numel() != embeddings_weight.shape[1]:
+            raise ValueError("context vector dimension must match model embeddings")
+        vector = torch.nn.functional.normalize(vector, p=2, dim=0)
+        key = hashlib.blake2b(vector.detach().cpu().numpy().tobytes(), digest_size=16).hexdigest()
+        cached = self._context_cache.get(key)
+        if cached is None:
+            sims = torch.nn.functional.cosine_similarity(
+                embeddings_weight.float(), vector.unsqueeze(0), dim=1
+            )
+            count = min(128, sims.numel() // 2)
+            aligned = torch.topk(sims, count).indices
+            opposed = torch.topk(-sims, count).indices
+            ids = torch.cat((aligned, opposed)).detach().cpu().numpy().astype(np.int32)
+            weights = torch.cat((sims[aligned], -sims[opposed])).detach().cpu().numpy().astype(np.float32)
+            cached = (ids, weights)
+            self._context_cache[key] = cached
+        self._context_halo_ids, self._context_halo_weights = cached
+        return key
+
+    def clear_context_vector(self) -> None:
+        """Remove the request-scoped contextual field."""
+        self._context_halo_ids = None
+        self._context_halo_weights = None
 
     # ─── Modulação dinâmica ─────────────────────────────────────
 

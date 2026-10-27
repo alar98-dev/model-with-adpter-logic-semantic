@@ -11,17 +11,16 @@ from typing import List, Optional
 
 import torch
 import torch.nn.functional as F
+from swa.dimensions import MEMORY_DIM, NATIVE_DIM, project_vector, projection_matrix
+from swa.paths import PROJECT_ROOT
 
-GOLD_DIM = 2560
-NATIVE_DIM = 640
+GOLD_DIM = MEMORY_DIM
 _PROJECTOR: Optional[torch.Tensor] = None
 _PROJECTOR_LOCK = threading.Lock()
 
 
 def _project_root() -> str:
-    return os.environ.get(
-        "SWA_PROJECT_ROOT", "/services/model-with-adpter-logic-semantic"
-    )
+    return str(PROJECT_ROOT)
 
 
 def _real_embeddings_enabled() -> bool:
@@ -31,14 +30,11 @@ def _real_embeddings_enabled() -> bool:
 
 
 def get_projection_matrix(device: torch.device, dtype: torch.dtype) -> torch.Tensor:
-    """Matriz fixa 2560×640 (seed 137) — mesmo espaço para todos os textos."""
+    """Matriz fixa 2560×640 do contrato dimensional compartilhado."""
     global _PROJECTOR
     with _PROJECTOR_LOCK:
         if _PROJECTOR is None:
-            g = torch.Generator(device="cpu").manual_seed(137)
-            p = torch.randn((GOLD_DIM, NATIVE_DIM), generator=g)
-            p = p / p.norm(dim=0, keepdim=True).clamp(min=1e-9)
-            _PROJECTOR = p
+            _PROJECTOR = projection_matrix(NATIVE_DIM, GOLD_DIM)
         return _PROJECTOR.to(device=device, dtype=dtype)
 
 
@@ -78,8 +74,30 @@ class RealityEmbedder:
                 cls._instance = inst
             return cls._instance
 
+    def attach_shared_model(self, model, tokenizer, device):
+        """Compartilha a referência em memória do Gemma 270M do AeonCore (Zero RAM duplicada)."""
+        if model is not None:
+            class SharedVectorizerProxy:
+                def __init__(self, m, tok, dev):
+                    self.model = m
+                    self.tokenizer = tok
+                    self.device = dev
+                def embed(self, text: str):
+                    import torch
+                    ids = self.tokenizer(text, return_tensors="pt", truncation=True, max_length=512)["input_ids"].to(self.device)
+                    with torch.no_grad():
+                        out = self.model(ids, output_hidden_states=True)
+                        h = out.hidden_states[-1] if hasattr(out, "hidden_states") and out.hidden_states is not None else getattr(out, "last_hidden_state", None)
+                        if h is None:
+                            h = out[0]
+                        return h.mean(dim=1).to(torch.float32)
+            self._vectorizer = SharedVectorizerProxy(model, tokenizer, device)
+            self._native_dim = getattr(model.config, "hidden_size", 640)
+            self._ready = True
+            print("⚡ [REALITY EMBEDDER] Gemma 270M compartilhado com o AeonCore (Zero cópias adicionais em RAM)!")
+
     def ensure_loaded(self) -> None:
-        if self._ready:
+        if self._ready and self._vectorizer is not None:
             return
         if self._use_hash:
             self._ready = True
@@ -116,6 +134,26 @@ class RealityEmbedder:
         except Exception as e:
             print(f"⚠️ [REALITY EMBEDDER] Inferência falhou: {e}")
             return _hash_fallback(chunk)
+
+    def embed_text_640(self, text: str, max_chars: int = 8000) -> List[float]:
+        """Return the canonical native subcortex representation."""
+        self.ensure_loaded()
+        chunk = (text or " ").strip()[:max_chars]
+        if not chunk:
+            return [0.0] * NATIVE_DIM
+        if self._use_hash:
+            return project_vector(
+                torch.as_tensor(_hash_fallback(chunk)), MEMORY_DIM, NATIVE_DIM
+            ).cpu().tolist()
+        try:
+            return F.normalize(
+                torch.as_tensor(self._vectorizer.embed(chunk)).reshape(-1)[:NATIVE_DIM],
+                p=2, dim=0,
+            ).cpu().tolist()
+        except Exception:
+            return self.embed_text_640(chunk, max_chars=max_chars) if self._use_hash else (
+                project_vector(torch.as_tensor(_hash_fallback(chunk)), MEMORY_DIM, NATIVE_DIM).cpu().tolist()
+            )
 
     def embed_file_2560(self, filepath: str, max_chars: int = 8000) -> List[float]:
         try:

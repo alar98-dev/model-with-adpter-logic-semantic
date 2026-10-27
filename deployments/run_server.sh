@@ -14,7 +14,7 @@ start() {
   cd "$ROOT_DIR"
   export PYTHONPATH="$ROOT_DIR"
   source "$VENV/bin/activate"
-  nohup python -m uvicorn swa.rest_server:app --host 0.0.0.0 --port 20000 > "$LOGFILE" 2>&1 &
+  nohup python -m uvicorn swa.rest_server:app --host 127.0.0.1 --port 20000 > "$LOGFILE" 2>&1 &
   echo $! > "$PIDFILE"
   echo "Started: PID=$(cat $PIDFILE)"
 }

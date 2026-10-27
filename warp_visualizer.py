@@ -175,6 +175,6 @@ class WarpHandler(SimpleHTTPRequestHandler):
             self.end_headers()
 
 if __name__ == "__main__":
-    server = HTTPServer(('0.0.0.0', 30042), WarpHandler)
+    server = HTTPServer(('127.0.0.1', 30042), WarpHandler)
     print("🌌 Visualizador de Buraco Branco Online: http://127.0.0.1:30042")
     server.serve_forever()

@@ -1,0 +1,59 @@
+{
+  "name": "SWA Deep Void",
+  "type": "dark",
+  "colors": {
+    "editor.background": "#050810",
+    "editor.foreground": "#e2e8f0",
+    "activityBar.background": "#03050a",
+    "activityBar.foreground": "#6366f1",
+    "sideBar.background": "#070b14",
+    "sideBar.border": "rgba(99, 102, 241, 0.2)",
+    "sideBarTitle.foreground": "#c7d2fe",
+    "statusBar.background": "#03050a",
+    "statusBar.foreground": "#a5b4fc",
+    "statusBar.border": "rgba(99, 102, 241, 0.25)",
+    "statusBarItem.prominentBackground": "#6366f1",
+    "titleBar.activeBackground": "#03050a",
+    "titleBar.activeForeground": "#c7d2fe",
+    "titleBar.border": "rgba(99, 102, 241, 0.15)",
+    "tab.activeBackground": "#0c1322",
+    "tab.activeForeground": "#f8fafc",
+    "tab.activeBorderTop": "#6366f1",
+    "tab.inactiveBackground": "#050810",
+    "editorGroupHeader.tabsBackground": "#03050a",
+    "editorCursor.foreground": "#a855f7",
+    "editor.lineHighlightBackground": "rgba(99, 102, 241, 0.08)",
+    "editorLineNumber.foreground": "#334155",
+    "editorLineNumber.activeForeground": "#818cf8",
+    "editorIndentGuide.background": "rgba(99, 102, 241, 0.1)",
+    "editorIndentGuide.activeBackground": "rgba(99, 102, 241, 0.35)",
+    "editorSuggestWidget.background": "#090d18",
+    "editorSuggestWidget.border": "rgba(99, 102, 241, 0.3)"
+  },
+  "tokenColors": [
+    {
+      "scope": ["keyword", "storage.type", "storage.modifier"],
+      "settings": { "foreground": "#a855f7", "fontStyle": "bold" }
+    },
+    {
+      "scope": ["entity.name.function", "support.function"],
+      "settings": { "foreground": "#38bdf8" }
+    },
+    {
+      "scope": ["string", "string.quoted"],
+      "settings": { "foreground": "#10b981" }
+    },
+    {
+      "scope": ["constant.numeric", "constant.language"],
+      "settings": { "foreground": "#f59e0b" }
+    },
+    {
+      "scope": ["comment"],
+      "settings": { "foreground": "#475569", "fontStyle": "italic" }
+    },
+    {
+      "scope": ["variable", "variable.parameter"],
+      "settings": { "foreground": "#f1f5f9" }
+    }
+  ]
+}

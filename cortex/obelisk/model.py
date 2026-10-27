@@ -73,6 +73,16 @@ class ObeliskModel:
                 trust_remote_code=True,
             ).eval()
 
+            if os.environ.get("SWA_INT8", "0") == "1":
+                try:
+                    from torchao.quantization import quantize_
+                    from torchao.quantization.quant_api import Int8WeightOnlyConfig
+                    self.model.to(torch.bfloat16)
+                    quantize_(self.model, Int8WeightOnlyConfig())
+                    print("⚡ [OBELISK] Quantização INT8 weight-only aplicada")
+                except Exception as e:
+                    print(f"⚠️ [OBELISK] INT8 indisponível: {e}")
+
             self._calibrator = LogitCalibrator(num_labels=len(OBELISK_LABELS))
 
             if os.path.exists(HEAD_PATH):

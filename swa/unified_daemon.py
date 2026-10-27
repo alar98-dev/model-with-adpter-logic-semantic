@@ -14,7 +14,9 @@ import urllib.parse
 from urllib.error import HTTPError
 from pathlib import Path
 
-ROOT = Path(os.environ.get("SWA_PROJECT_ROOT", "/services/model-with-adpter-logic-semantic"))
+from swa.paths import PROJECT_ROOT
+
+ROOT = PROJECT_ROOT
 sys.path.insert(0, str(ROOT))
 
 import torch
@@ -149,7 +151,7 @@ class FileChangeWatcher:
             seed = len(content) % 1000
             torch.manual_seed(seed)
             mutated_tensor = torch.randn(2560, dtype=torch.float32) * 0.05
-            vec_list = mutated_tensor.numpy().tolist()
+            vec_list = mutated_tensor.detach().cpu().numpy().tolist()
 
             self.cursor.execute("""
                 UPDATE blake_semantic_anchors 

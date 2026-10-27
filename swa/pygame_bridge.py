@@ -66,9 +66,29 @@ class PygameBridge:
         except Exception:
             self.r = None
 
-    def update_grid(self, grid):
+    def update_grid(self, grid=None):
         # [SWA AGGREGATION] Acumula pulsos dos agentes
+        if grid is None:
+            # juiz físico: a MESMA célula add-only foldada (640D → 4096 floats = 64×64)
+            grid = self._read_aeon_cell_physical()
+            if grid is None:
+                return
         self.tensor_grid = np.maximum(self.tensor_grid, grid)
+
+    def _read_aeon_cell_physical(self):
+        """Lê a célula AEON física add-only do STORE (o bloco que o receptor folda)."""
+        try:
+            from swa.vector_manifold import VBAT_FROZEN_FILE
+            f = VBAT_STORE_FILE[640]
+            if not f.is_file():
+                return None
+            import struct
+            with open(f, "rb") as fh:
+                chunk = fh.read()
+            topo = list(struct.unpack("!4096f", chunk[:4 * 4096]))
+            return np.array(topo, dtype=np.float32).reshape(64, 64)
+        except Exception:
+            return None
 
     def project_3d(self, vertices, angle, scale, offset_x, offset_y):
         s, c = np.sin(angle), np.cos(angle)

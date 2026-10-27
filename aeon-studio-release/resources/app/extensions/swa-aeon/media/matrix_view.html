@@ -1,0 +1,3060 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWA Aeon — Cidade Tensorial Vivo</title>
+  <style>
+    :root {
+      --bg: #010206;
+      --cyan: #38bdf8;
+      --indigo: #818cf8;
+      --purple: #a855f7;
+      --magenta: #ec4899;
+      --amber: #fbbf24;
+      --emerald: #34d399;
+      --rose: #f43f5e;
+      --text: #f8fafc;
+      --muted: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at 50% 45%, #050816 0%, #010206 100%);
+      color: var(--text);
+      font-family: 'Courier New', monospace, sans-serif;
+      overflow: hidden;
+      width: 100vw; height: 100vh;
+      user-select: none;
+    }
+    #universe-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+
+    #hud {
+      position: absolute; top: 16px; left: 16px; z-index: 10;
+      display: flex; flex-direction: column; gap: 5px;
+      background: rgba(5, 9, 20, 0.72);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      border-radius: 10px; padding: 10px 14px;
+      backdrop-filter: blur(12px);
+      pointer-events: none;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+    }
+    .hud-row { font-size: 0.7rem; letter-spacing: 0.08em; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+    .hud-val { color: var(--text); font-weight: bold; }
+    .hud-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--emerald); box-shadow: 0 0 10px var(--emerald); animation: bio-pulse 1.8s ease-in-out infinite; }
+    @keyframes bio-pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(0.75);opacity:0.4} }
+
+    #title-bar { position: absolute; top: 16px; right: 20px; text-align: right; z-index: 10; pointer-events: none; }
+    #title-bar h1 { font-size: 0.95rem; letter-spacing: 0.25em; text-transform: uppercase; color: rgba(248,250,252,0.95); text-shadow: 0 0 18px rgba(168,85,247,0.6); }
+    #title-bar p { font-size: 0.62rem; letter-spacing: 0.14em; color: var(--magenta); margin-top: 3px; }
+
+    #thought-stream { position: absolute; bottom: 0; left: 0; right: 0; height: 85px; background: linear-gradient(180deg, rgba(1,2,6,0) 0%, rgba(1,2,6,0.92) 25%, rgba(1,2,6,0.98) 100%); border-top: 1px solid rgba(168,85,247,0.25); padding: 10px 20px; z-index: 10; overflow: hidden; }
+    #thought-label { font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--magenta); margin-bottom: 4px; }
+    #thought-text { font-size: 0.78rem; line-height: 1.5; color: rgba(226,232,240,0.9); white-space: pre-wrap; overflow: hidden; max-height: 55px; }
+    #thought-cursor { display: inline-block; animation: blink 0.7s step-start infinite; color: var(--magenta); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    #cluster-tooltip {
+      position: absolute; background: rgba(6,10,24,0.95);
+      border: 1px solid rgba(168,85,247,0.6); border-radius: 10px;
+      padding: 12px 16px; font-size: 0.74rem; line-height: 1.55;
+      z-index: 50; pointer-events: none; opacity: 0; max-width: 380px;
+      max-height: 72vh; overflow-y: auto;
+      transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.85), 0 0 24px rgba(168,85,247,0.35);
+      backdrop-filter: blur(14px);
+    }
+    #cluster-tooltip.visible { opacity: 1; transform: translateY(-6px); }
+    #cluster-tooltip strong { color: var(--cyan); font-size: 0.84rem; display: block; margin-bottom: 4px; }
+    #cluster-tooltip .metric-row { display: flex; justify-content: space-between; font-size: 0.68rem; color: #94a3b8; }
+    #cluster-tooltip .metric-row .val { color: #e2e8f0; font-weight: bold; }
+    #cluster-tooltip .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.62rem; font-weight: bold; margin-bottom: 6px; }
+
+    #zoom-indicator {
+      position: absolute; bottom: 95px; left: 16px; z-index: 10;
+      font-size: 0.65rem; color: var(--muted); letter-spacing: 0.1em;
+      background: rgba(5,9,20,0.7); border: 1px solid rgba(168,85,247,0.2);
+      border-radius: 6px; padding: 4px 10px;
+      backdrop-filter: blur(8px);
+    }
+
+    #scale-bar {
+      position: absolute; bottom: 70px; left: 16px; z-index: 10;
+      display: flex; flex-direction: column; align-items: flex-start;
+      font-family: 'Courier New', monospace; font-size: 9px; color: #94a3b8;
+    }
+    #scale-line {
+      width: 100px; height: 2px; background: #94a3b8;
+      border-left: 1px solid #94a3b8; border-right: 1px solid #94a3b8;
+      margin-bottom: 2px;
+    }
+    #scale-label, #scale-label-end { font-size: 8px; }
+
+    #minimap {
+      position: absolute; bottom: 16px; right: 16px; z-index: 10;
+      border: 1px solid rgba(168,85,247,0.3); border-radius: 8px;
+      background: rgba(5,9,20,0.85); backdrop-filter: blur(8px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    }
+    #minimap-label {
+      position: absolute; bottom: 158px; right: 16px; z-index: 10;
+      font-family: 'Courier New', monospace; font-size: 9px;
+      color: var(--muted); letter-spacing: 0.1em;
+    }
+    #coord-display {
+      position: absolute; bottom: 16px; left: 16px; z-index: 10;
+      font-family: 'Courier New', monospace; font-size: 9px;
+      color: #64748b; letter-spacing: 0.05em;
+      background: rgba(5,9,20,0.6); border: 1px solid rgba(100,116,139,0.2);
+      border-radius: 4px; padding: 3px 8px;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="universe-canvas"></canvas>
+
+<div id="hud">
+  <div class="hud-row"><div class="hud-dot" id="hud-dot-rest"></div> SISTEMA: <span class="hud-val" id="hud-rest">HOMEOSTASE ATIVA</span></div>
+  <div class="hud-row">🌡 CALOR METABÓLICO: <span class="hud-val" id="hud-temp">48.2°C</span></div>
+  <div class="hud-row">🧠 CARGA COGNITIVA: <span class="hud-val" id="hud-ram">38.4%</span></div>
+  <div class="hud-row">⚡ ENTROPIA CIDADE: <span class="hud-val" id="hud-entropy">0.042</span></div>
+  <div class="hud-row">🔄 CICLO ECONÔMICO: <span class="hud-val" id="hud-cycle">0/60</span></div>
+  <div class="hud-row">🏢 EMPRESAS: <span class="hud-val" id="hud-empresas">0</span></div>
+  <div class="hud-row">👥 WORKERS: <span class="hud-val" id="hud-workers">0</span></div>
+  <div class="hud-row">🏙 CIDADE: <span class="hud-val" id="hud-citypop">0 hab</span></div>
+  <div class="hud-row">💰 ORÇAMENTO: <span class="hud-val" id="hud-money">R$ 500k</span></div>
+  <div class="hud-row">😊 FELICIDADE: <span class="hud-val" id="hud-happy">75%</span></div>
+  <div class="hud-row">📅 MÊS: <span class="hud-val" id="hud-month">Jan/2026</span></div>
+  <div class="hud-row">📊 SETORES SAUDÁVEIS: <span class="hud-val" id="hud-sectors-ok">0/15</span></div>
+  <div class="hud-row">💰 FLUXO FINANCEIRO: <span class="hud-val" id="hud-flux">0</span></div>
+  <div class="hud-row">🌀 MICROGRAVIDADE: <span class="hud-val" id="hud-microg">0.0000</span></div>
+  <div class="hud-row">🔥 FISSÕES: <span class="hud-val" id="hud-fissions">0</span></div>
+</div>
+
+<div id="title-bar">
+  <h1>SWA AEON · CIDADE TENSORIAL</h1>
+  <p>ANATOMIA FINANCEIRA · FLUXO DE RECURSOS</p>
+</div>
+
+<div id="cluster-tooltip"></div>
+<div id="zoom-indicator">ZOOM: MACRO</div>
+
+<div id="scale-bar">
+  <div id="scale-line"></div>
+  <div id="scale-label">0m</div>
+  <div id="scale-label-end">100m</div>
+</div>
+
+<canvas id="minimap" width="180" height="140"></canvas>
+<div id="minimap-label">TOPOLOGIA DA CIDADE</div>
+<div id="coord-display">x: 0m y: 0m z: 0m</div>
+
+<div id="thought-stream">
+  <div id="thought-label">FLUXO DE RECURSOS · CORRENTE FINANCEIRA</div>
+  <div id="thought-text"><span id="thought-cursor">▋</span></div>
+</div>
+
+<script src="city_data.js"></script>
+<script>
+  const vscode = acquireVsCodeApi();
+
+  const state = {
+    restOk: true, temp: 48.2, ram: 38.4, entropy: 0.042, cycle: 0,
+    anchors: 3377, microgravity: 0.0, fissionCount: 0
+  };
+
+  // ─── HUD ───
+  const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  function updateHUD() {
+    document.getElementById('hud-temp').textContent = (state.temp || 48.2).toFixed(1) + '°C';
+    document.getElementById('hud-ram').textContent = (state.ram || 38.4).toFixed(1) + '%';
+    document.getElementById('hud-entropy').textContent = (state.entropy || 0.042).toFixed(3);
+    document.getElementById('hud-cycle').textContent = (state.cycle || 0) + '/60';
+    document.getElementById('hud-microg').textContent = (state.microgravity || 0).toFixed(4);
+    document.getElementById('hud-fissions').textContent = String(state.fissionCount || 0);
+    const dot = document.getElementById('hud-dot-rest');
+    const val = document.getElementById('hud-rest');
+    if (state.restOk) { dot.className = 'hud-dot'; val.textContent = 'HOMEOSTASE ATIVA'; }
+    else { dot.style.background = '#ef4444'; val.textContent = 'STANDBY'; }
+    // CitySim data
+    const cs = CitySim;
+    document.getElementById('hud-citypop').textContent = cs.population.toLocaleString() + ' hab';
+    document.getElementById('hud-money').textContent = 'R$ ' + (cs.money >= 1000000 ? (cs.money/1000000).toFixed(1)+'M' : (cs.money/1000).toFixed(0)+'k');
+    document.getElementById('hud-happy').textContent = (cs.happiness * 100).toFixed(0) + '%';
+    document.getElementById('hud-month').textContent = MONTHS[cs.month] + '/' + cs.year;
+    updateCityMetrics();
+  }
+
+  // ─── CITY METRICS ───
+  let totalEmpresas = 0, totalProcessos = 0, healthySectors = 0, totalFlux = 0, totalWorkers = 0;
+  function updateCityMetrics() {
+    totalEmpresas = 0; totalProcessos = 0; healthySectors = 0; totalFlux = 0; totalWorkers = 0;
+    for (const s of CITY_SECTORS) {
+      totalEmpresas += s.empresas.length;
+      for (const e of s.empresas) {
+        totalProcessos += e.processos.length;
+        totalWorkers += (e.workers || []).length;
+      }
+      if (s.metrics.saude > 0.7) healthySectors++;
+    }
+    for (const ed of CITY_EDGES) totalFlux += ed.weight;
+    document.getElementById('hud-empresas').textContent = String(totalEmpresas);
+    document.getElementById('hud-workers').textContent = String(totalWorkers);
+    document.getElementById('hud-sectors-ok').textContent = healthySectors + '/' + CITY_SECTORS.length;
+    document.getElementById('hud-flux').textContent = totalFlux.toFixed(1);
+  }
+  updateCityMetrics();
+
+  // ─── THOUGHT STREAM ───
+  const thoughtEl = document.getElementById('thought-text');
+  const cursorEl = document.getElementById('thought-cursor');
+  let thoughtBuffer = '';
+  function appendThought(text) {
+    thoughtBuffer += text;
+    if (thoughtBuffer.length > 280) thoughtBuffer = thoughtBuffer.slice(-280);
+    thoughtEl.textContent = thoughtBuffer;
+    thoughtEl.appendChild(cursorEl);
+  }
+  function clearThought() { thoughtBuffer = ''; thoughtEl.textContent = ''; thoughtEl.appendChild(cursorEl); }
+
+  // ─── POLLING ───
+  setInterval(() => { vscode.postMessage({ command: 'matrixPoll' }); }, 3000);
+
+  window.addEventListener('message', event => {
+    const msg = event.data;
+    switch(msg.command) {
+      case 'matrixState':
+        state.restOk = true;
+        if (msg.entropy !== undefined) state.entropy = msg.entropy;
+        if (msg.cycle !== undefined) state.cycle = msg.cycle;
+        if (msg.temp !== undefined) state.temp = msg.temp;
+        if (msg.ram !== undefined) state.ram = msg.ram;
+        if (msg.anchors !== undefined) state.anchors = msg.anchors;
+        if (msg.microgravity !== undefined) state.microgravity = msg.microgravity;
+        if (msg.fissionCount !== undefined) state.fissionCount = msg.fissionCount;
+        updateHUD();
+        break;
+      case 'thinkingStart': clearThought(); appendThought('⚡ '); break;
+      case 'thinkingChunk': appendThought(msg.text); break;
+      case 'thinkingEnd': appendThought(' ◼'); break;
+      case 'connectionError': state.restOk = false; updateHUD(); break;
+    }
+  });
+
+  // ─── CANVAS ───
+  const canvas = document.getElementById('universe-canvas');
+  if (!canvas) { document.body.innerHTML = '<p style="color:red">Canvas não encontrado</p>'; throw new Error('no canvas'); }
+  const ctx = canvas.getContext('2d');
+  if (!ctx) { document.body.innerHTML = '<p style="color:red">Contexto 2D falhou</p>'; throw new Error('no ctx'); }
+  let W, H;
+  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ─── 3D CAMERA ───
+  let rotX = 0, rotY = 0, targetRotX = 0, targetRotY = 0;
+  let isDragging = false, lastMouseX = 0, lastMouseY = 0;
+  let mouseClientX = 0, mouseClientY = 0;
+
+  window.addEventListener('mousedown', e => { isDragging = true; lastMouseX = e.clientX; lastMouseY = e.clientY; });
+  window.addEventListener('mouseup', () => isDragging = false);
+  window.addEventListener('mousemove', e => {
+    mouseClientX = e.clientX; mouseClientY = e.clientY;
+    if (isDragging) {
+      targetRotY += (e.clientX - lastMouseX) * 0.005;
+      targetRotX += (e.clientY - lastMouseY) * 0.005;
+      lastMouseX = e.clientX; lastMouseY = e.clientY;
+    } else {
+      targetRotY = (e.clientX / W - 0.5) * 0.6;
+      targetRotX = (e.clientY / H - 0.5) * 0.6;
+    }
+  });
+
+  // ─── ZOOM ───
+  let targetZoom = 0.8, currentZoom = 0.8;
+  const zoomIndicator = document.getElementById('zoom-indicator');
+  window.addEventListener('wheel', e => {
+    e.preventDefault();
+    targetZoom += e.deltaY * 0.001;
+    targetZoom = Math.max(0.12, Math.min(1.5, targetZoom));
+  }, { passive: false });
+
+  function getZoomLabel(z) {
+    if (z > 0.55) return 'MACRO';
+    if (z > 0.25) return 'MESO';
+    return 'MICRO';
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // TERRITORY MANAGER — Criação Dinâmica de Novos Territórios
+  // ═══════════════════════════════════════════════════════════════
+  const TerritoryManager = {
+    spawnQueue: [],
+    activeSpawns: [],
+    maxSectors: 25,
+    maxEmpresasPerSector: 8,
+    spawnCooldown: 0,
+    totalCreated: 0,
+
+    SECTOR_TEMPLATES: [
+      { name: "Biotech", emoji: "🧬", color: "#34d399", base: { receita: 3200, custo: 2400 } },
+      { name: "Quântica", emoji: "⚛️", color: "#818cf8", base: { receita: 5000, custo: 3000 } },
+      { name: "Espacial", emoji: "🚀", color: "#f472b6", base: { receita: 4500, custo: 3500 } },
+      { name: "Nanotecnologia", emoji: "🔬", color: "#2dd4bf", base: { receita: 3800, custo: 2800 } },
+      { name: "Sustentabilidade", emoji: "♻️", color: "#4ade80", base: { receita: 2600, custo: 2000 } },
+      { name: "Neurociência", emoji: "🧠", color: "#c084fc", base: { receita: 4200, custo: 3200 } },
+      { name: "Mídia Digital", emoji: "📺", color: "#fb923c", base: { receita: 2800, custo: 2100 } },
+      { name: "Robótica", emoji: "🤖", color: "#f87171", base: { receita: 4000, custo: 3000 } },
+    ],
+
+    EMPRESA_NAMES: [
+      "NexusCore", "QuantumBit", "StarField", "NanoLab", "GreenWave",
+      "Neuralink Pro", "StreamHub", "RoboTech", "DataMesh", "CyberForge",
+      "Photon Labs", "AtomWorks", "Void Pioneer", "BioSynth", "EcoMatrix",
+    ],
+
+    WORKER_NAMES: [
+      "Zara Chen", "Kai Nakamura", "Luna Petrov", "Ravi Gupta", "Aisha Okafor",
+      "Finn Müller", "Yuki Tanaka", "Omar Hassan", "Elena Volkov", "Devi Sharma",
+    ],
+
+    CARGOS_BY_FIELD: {
+      "Biotech": ["Bioengenheiro", "Pesquisador", "Técnico Lab", "Regulatório"],
+      "Quântica": ["Físico Quântico", "Engenheiro Qubits", "Algoritmos", "Operador"],
+      "Espacial": ["Engenheiro Aero", "Operador Satélite", "Navegação", "Controle"],
+      "Nanotecnologia": ["Nanotecnólogo", "Microscopista", "Fabricação", "Controle"],
+      "Sustentabilidade": ["Engenheiro Ambiental", "Monitoramento", "Projeto Solar", "Reciclagem"],
+      "Neurociência": ["Neurocientista", "Engenheiro BCI", "Dados Neurais", "Clínico"],
+      "Mídia Digital": ["Editor", "Motion Designer", "Streaming", "Produtor"],
+      "Robótica": ["Engenheiro Robô", "Programador", "Mecânico", "Testes"],
+    },
+
+    canSpawn() {
+      return CITY_SECTORS.length < this.maxSectors && this.spawnCooldown <= 0;
+    },
+
+    generateSectorPos() {
+      // Posição aleatória mas não muito perto de setores existentes
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 250 + Math.random() * 200;
+      const x = Math.cos(angle) * dist;
+      const y = Math.sin(angle) * dist * 0.6;
+      const z = (Math.random() - 0.5) * 200;
+      // Verificar colisão com setores existentes
+      for (const s of CITY_SECTORS) {
+        const d = Math.hypot(s.x - x, s.y - y, s.z - z);
+        if (d < 120) return this.generateSectorPos(); // tentar de novo
+      }
+      return { x, y, z };
+    },
+
+    createSector(μG, fissionEnergy) {
+      if (!this.canSpawn()) return null;
+      const tmpl = this.SECTOR_TEMPLATES[Math.floor(Math.random() * this.SECTOR_TEMPLATES.length)];
+      const pos = this.generateSectorPos();
+      const receita = Math.floor(tmpl.base.receita * (0.7 + Math.random() * 0.6));
+      const custo = Math.floor(tmpl.base.custo * (0.7 + Math.random() * 0.6));
+      const sid = `S${String(CITY_SECTORS.length + 1).padStart(2, '0')}`;
+
+      const sector = {
+        id: sid,
+        name: tmpl.name,
+        color: tmpl.color,
+        emoji: tmpl.emoji,
+        x: pos.x, y: pos.y, z: pos.z,
+        radius: 50 + Math.floor(Math.random() * 25),
+        metrics: { receita, custo, saude: 0.6 + Math.random() * 0.3, entropia: 0.05 + Math.random() * 0.15, funcionarios: 40 + Math.floor(Math.random() * 100) },
+        empresas: [],
+        spawned: true,
+        spawnTime: timeClock,
+        spawnOrigin: { μG, fissionEnergy },
+        _animProgress: 0,
+      };
+
+      // Criar 2-4 empresas
+      const numEmp = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < numEmp; i++) {
+        const emp = this.createEmpresa(sid, tmpl, pos, i);
+        sector.empresas.push(emp);
+      }
+
+      // Criar rodovia de conexão com setor mais próximo
+      let closestSector = null, closestDist = Infinity;
+      for (const s of CITY_SECTORS) {
+        const d = Math.hypot(s.x - pos.x, s.y - pos.y, s.z - pos.z);
+        if (d < closestDist) { closestDist = d; closestSector = s; }
+      }
+      if (closestSector) {
+        const mid = {
+          x: (closestSector.x + pos.x) / 2,
+          y: (closestSector.y + pos.y) / 2 + (Math.random() - 0.5) * 30,
+          z: (closestSector.z + pos.z) / 2,
+        };
+        CITY_ROUTES.push({
+          type: "rodovia", name: `Via ${closestSector.name}-${tmpl.name}`,
+          from: { x: closestSector.x, y: closestSector.y, z: closestSector.z },
+          to: { x: pos.x, y: pos.y, z: pos.z },
+          mid, width: 2.5, color: "#fbbf24", speed: 100, capacity: "alta"
+        });
+        // Rota aérea também
+        CITY_AIR_ROUTES.push({
+          name: `Linha ${closestSector.name}-${tmpl.name}`,
+          from: closestSector.id, to: sid,
+          from_pos: { x: closestSector.x, y: closestSector.y - 150, z: closestSector.z },
+          to_pos: { x: pos.x, y: pos.y - 150, z: pos.z },
+          mid: { x: mid.x, y: mid.y - 180, z: mid.z },
+          alt: 150, color: "#f472b6", aircraft: "drone", freq: 10,
+        });
+      }
+
+      CITY_SECTORS.push(sector);
+      this.totalCreated++;
+      this.spawnCooldown = 60; // 60 frames de cooldown
+
+      // Reiniciar partículas de fluxo para incluir novas arestas
+      initFlowParticles();
+      updateCityMetrics();
+
+      return sector;
+    },
+
+    createEmpresa(sectorId, tmpl, sectorPos, index) {
+      const eid = `E${sectorId}${String(index + 1).padStart(2, '0')}`;
+      const name = this.EMPRESA_NAMES[Math.floor(Math.random() * this.EMPRESA_NAMES.length)];
+      const offset = {
+        x: (Math.random() - 0.5) * 120,
+        y: (Math.random() - 0.5) * 120,
+        z: (Math.random() - 0.5) * 80,
+      };
+      const receita = Math.floor(tmpl.base.receita * (0.3 + Math.random() * 0.4));
+      const custo = Math.floor(tmpl.base.custo * (0.3 + Math.random() * 0.4));
+      const func = 15 + Math.floor(Math.random() * 40);
+
+      const processos = [];
+      const numProc = 2 + Math.floor(Math.random() * 3);
+      const procNames = ["Produção", "Análise", "Controle", "Entrega", "Pesquisa", "Desenvolvimento", "Qualidade", "Logística"];
+      for (let i = 0; i < numProc; i++) {
+        processos.push({
+          id: `P${eid}${i + 1}`,
+          name: procNames[Math.floor(Math.random() * procNames.length)],
+          x: sectorPos.x + offset.x + (Math.random() - 0.5) * 40,
+          y: sectorPos.y + offset.y + (Math.random() - 0.5) * 40,
+          z: sectorPos.z + offset.z + (Math.random() - 0.5) * 30,
+          metrics: {
+            throughput: 10 + Math.floor(Math.random() * 150),
+            latencia: Math.round(Math.random() * 40 + 5, 1),
+            erro: Math.round(Math.random() * 0.05, 3),
+            ciclo: 1 + Math.floor(Math.random() * 5),
+          }
+        });
+      }
+
+      // Workers
+      const cargos = this.CARGOS_BY_FIELD[tmpl.name] || ["Analista", "Técnico", "Engenheiro", "Operador"];
+      const workers = [];
+      const numWorkers = Math.min(cargos.length, func);
+      for (let i = 0; i < numWorkers; i++) {
+        workers.push({
+          id: `W${eid}${String(i + 1).padStart(2, '0')}`,
+          nome: this.WORKER_NAMES[Math.floor(Math.random() * this.WORKER_NAMES.length)],
+          cargo: cargos[i % cargos.length],
+          salario: 3000 + Math.floor(Math.random() * 8000),
+          produtividade: Math.round((0.5 + Math.random() * 0.5) * 100) / 100,
+          skills: [cargos[i % cargos.length], "Comunicação", "Inovação"],
+          vinculo: processos[i % processos.length].name,
+          horas_semanais: 40 + Math.floor(Math.random() * 8),
+        });
+      }
+
+      return {
+        id: eid, name,
+        x: sectorPos.x + offset.x, y: sectorPos.y + offset.y, z: sectorPos.z + offset.z,
+        radius: 15 + Math.floor(Math.random() * 15),
+        color: tmpl.color + ['99', 'bb', 'dd'][Math.floor(Math.random() * 3)],
+        metrics: { receita, custo, funcionarios: func, resiliencia: 0.5 + Math.random() * 0.4, sinergia: 0.4 + Math.random() * 0.4 },
+        processos, workers,
+        spawned: true, spawnTime: timeClock, _animProgress: 0,
+      };
+    },
+
+    spawnFromFission(μG, fissionEnergy) {
+      if (!this.canSpawn() || μG < 0.5) return null;
+      const chance = μG * 0.15 + (fissionEnergy > 2.0 ? 0.3 : 0);
+      if (Math.random() > chance) return null;
+      return this.createSector(μG, fissionEnergy);
+    },
+
+    tick() {
+      if (this.spawnCooldown > 0) this.spawnCooldown--;
+      for (const s of CITY_SECTORS) {
+        if (s.spawned && s._animProgress < 1) {
+          s._animProgress = Math.min(1, s._animProgress + 0.008);
+        }
+        for (const e of s.empresas) {
+          if (e.spawned && e._animProgress < 1) {
+            e._animProgress = Math.min(1, e._animProgress + 0.012);
+          }
+        }
+      }
+    }
+  };
+
+  // ═══════════════════════════════════════════════════════════════
+  // CITY PLANNER — Planejamento Digital da Cidade
+  // ═══════════════════════════════════════════════════════════════
+  const CityPlanner = {
+    zones: {},         // zonas: residencial, comercial, industrial, mista
+    budgets: {},       // alocação de recursos por setor
+    plans: [],         // planos de expansão pendentes
+    totalBudget: 50000,
+    allocatedBudget: 0,
+
+    // ─── ZONEAMENTO: classifica cada setor ───
+    ZONE_TYPES: {
+      residencial: { color: '#60a5fa', label: 'Residencial', icon: '🏠' },
+      comercial: { color: '#fbbf24', label: 'Comercial', icon: '🛒' },
+      industrial: { color: '#f87171', label: 'Industrial', icon: '🏭' },
+      mista: { color: '#a78bfa', label: 'Mista', icon: '🌆' },
+      tech: { color: '#22d3ee', label: 'Tech Hub', icon: '💻' },
+      verde: { color: '#4ade80', label: 'Verde/Ecológica', icon: '🌿' },
+    },
+
+    classifySector(sector) {
+      const r = sector.metrics.receita;
+      const f = sector.metrics.funcionarios;
+      const name = sector.name.toLowerCase();
+      if (name.includes('tech') || name.includes('quânt') || name.includes('neuro')) return 'tech';
+      if (name.includes('agro') || name.includes('sustenta')) return 'verde';
+      if (name.includes('indústr') || name.includes('energ')) return 'industrial';
+      if (f > 300) return 'residencial';
+      if (r > 4000) return 'comercial';
+      return 'mista';
+    },
+
+    // ─── ALOCAÇÃO DE RECURSOS ───
+    allocateResources(sector) {
+      const zone = this.classifySector(sector);
+      const base = this.totalBudget / CITY_SECTORS.length;
+      const weights = {
+        residencial: 0.8, comercial: 1.0, industrial: 1.2,
+        mista: 1.0, tech: 1.4, verde: 0.9
+      };
+      const budget = Math.floor(base * (weights[zone] || 1.0) * (0.8 + Math.random() * 0.4));
+      this.budgets[sector.id] = {
+        total: budget,
+        infra: Math.floor(budget * 0.35),
+        pessoal: Math.floor(budget * 0.40),
+        tecnologia: Math.floor(budget * 0.15),
+        manutencao: Math.floor(budget * 0.10),
+        zone,
+      };
+      this.allocatedBudget += budget;
+      return this.budgets[sector.id];
+    },
+
+    // ─── PLANEJAMENTO DE EXPANSÃO ───
+    planExpansion(sector) {
+      const budget = this.budgets[sector.id];
+      if (!budget) return null;
+      const needsInfra = budget.infra < budget.total * 0.25;
+      const needsPeople = budget.pessoal < budget.total * 0.35;
+      const plan = {
+        sectorId: sector.id,
+        priority: needsInfra ? 'alta' : (needsPeople ? 'média' : 'baixa'),
+        proposals: [],
+      };
+      if (needsInfra) plan.proposals.push({ type: 'infra', desc: 'Expandir rede de transporte', cost: Math.floor(budget.infra * 0.5) });
+      if (needsPeople) plan.proposals.push({ type: 'pessoal', desc: 'Recrutar novos workers', cost: Math.floor(budget.pessoal * 0.3) });
+      if (sector.metrics.saude < 0.7) plan.proposals.push({ type: 'manutencao', desc: 'Manutenção preventiva', cost: Math.floor(budget.manutencao * 0.6) });
+      this.plans.push(plan);
+      return plan;
+    },
+
+    init() {
+      for (const s of CITY_SECTORS) {
+        this.zones[s.id] = this.classifySector(s);
+        this.allocateResources(s);
+        this.planExpansion(s);
+      }
+      this.allocatedBudget = 0;
+      for (const k in this.budgets) this.allocatedBudget += this.budgets[k].total;
+    },
+
+    tick(μG) {
+      // Realocação dinâmica baseada no μG
+      if (μG > 0.7) {
+        // Alta energia: investir em tech e expansão
+        for (const s of CITY_SECTORS) {
+          if (this.budgets[s.id]) {
+            const bonus = Math.floor(μG * 200);
+            this.budgets[s.id].total += bonus;
+            this.budgets[s.id].tecnologia += Math.floor(bonus * 0.6);
+          }
+        }
+      }
+    }
+  };
+  CityPlanner.init();
+
+  // ═══════════════════════════════════════════════════════════════
+  // BUILDINGS — Residências, Escritórios, Fábricas
+  // ═══════════════════════════════════════════════════════════════
+  const BuildingSystem = {
+    buildings: [],
+
+    TYPES: {
+      residencia: { label: 'Residência', color: '#60a5fa', height: 0.5, floors: 2, icon: '🏠' },
+      escritorio: { label: 'Escritório', color: '#22d3ee', height: 0.8, floors: 4, icon: '🏢' },
+      fabrica: { label: 'Fábrica', color: '#f87171', height: 0.3, floors: 1, icon: '🏭' },
+      laboratorio: { label: 'Laboratório', color: '#a78bfa', height: 0.6, floors: 3, icon: '🔬' },
+      terminal: { label: 'Terminal', color: '#fbbf24', height: 0.4, floors: 1, icon: '🚌' },
+      hospital: { label: 'Hospital', color: '#34d399', height: 0.9, floors: 5, icon: '🏥' },
+      universidade: { label: 'Universidade', color: '#818cf8', height: 0.7, floors: 3, icon: '🎓' },
+      centro_comercial: { label: 'Centro Comercial', color: '#fb923c', height: 0.6, floors: 3, icon: '🛒' },
+    },
+
+    // ─── GERA PRÉDIO PARA UMA EMPRESA ───
+    createBuilding(emp, sector) {
+      const zone = CityPlanner.classifySector(sector);
+      let type;
+      if (zone === 'tech') type = Math.random() > 0.5 ? 'laboratorio' : 'escritorio';
+      else if (zone === 'industrial') type = 'fabrica';
+      else if (zone === 'residencial') type = 'residencia';
+      else if (zone === 'verde') type = 'laboratorio';
+      else if (sector.name === 'Saúde') type = 'hospital';
+      else if (sector.name === 'Educação') type = 'universidade';
+      else if (sector.name === 'Comércio') type = 'centro_comercial';
+      else type = Math.random() > 0.5 ? 'escritorio' : 'residencia';
+
+      const tmpl = this.TYPES[type];
+      const building = {
+        id: `B${emp.id}`,
+        empresaId: emp.id,
+        sectorId: sector.id,
+        type,
+        x: emp.x + (Math.random() - 0.5) * 15,
+        y: emp.y - (tmpl.height * 40),
+        z: emp.z + (Math.random() - 0.5) * 15,
+        width: 8 + emp.radius * 0.3,
+        depth: 6 + emp.radius * 0.2,
+        height: tmpl.height * 40,
+        floors: tmpl.floors,
+        color: tmpl.color,
+        label: tmpl.label,
+        capacity: emp.metrics.funcionarios || 20,
+        occupancy: Math.floor((emp.metrics.funcionarios || 20) * (0.7 + Math.random() * 0.3)),
+        residentes: (emp.workers || []).slice(0, 5).map(w => ({
+          nome: w.nome,
+          cargo: w.cargo,
+          andar: 1 + Math.floor(Math.random() * tmpl.floors),
+        })),
+        // Energia do prédio
+        energy: 0.5 + Math.random() * 0.5,
+        spawned: emp.spawned || false,
+        spawnTime: emp.spawnTime || 0,
+        _animProgress: emp._animProgress || 1,
+      };
+      return building;
+    },
+
+    // ─── GERA TODOS OS PRÉDIOS ───
+    generateAll() {
+      this.buildings = [];
+      for (const sector of CITY_SECTORS) {
+        for (const emp of sector.empresas) {
+          this.buildings.push(this.createBuilding(emp, sector));
+        }
+        // Adicionar terminal de transporte no centro do setor
+        this.buildings.push({
+          id: `T${sector.id}`,
+          empresaId: null,
+          sectorId: sector.id,
+          type: 'terminal',
+          x: sector.x, y: sector.y - 10, z: sector.z,
+          width: 14, depth: 14, height: 8,
+          floors: 1,
+          color: '#fbbf24',
+          label: 'Terminal',
+          capacity: 50,
+          occupancy: Math.floor(sector.metrics.funcionarios * 0.3),
+          residentes: [],
+          energy: 0.8,
+          spawned: sector.spawned || false,
+          spawnTime: sector.spawnTime || 0,
+          _animProgress: sector._animProgress || 1,
+        });
+      }
+    },
+
+    // ─── RENDERIZA 1 PRÉDIO NO CANVAS ───
+    renderBuilding(ctx, b, cosY, sinY, cosX, sinX, respPulse, timeClock, isHovered, fov, cx, cy, zoom) {
+      const proj = project(b.x, b.y, b.z, cosY, sinY, cosX, sinX, respPulse);
+      if (proj.pz + fov <= 20) return;
+      const sc = fov / (fov + proj.pz + 240);
+      const bx = cx + proj.px * sc;
+      const by = cy + proj.py * sc;
+
+      const progress = b._animProgress || 1;
+      const ep = progress < 1 ? (1 - Math.pow(1 - progress, 3)) : 1;
+
+      const bW = b.width * sc * 0.7 * ep;
+      const bH = b.height * sc * 0.7 * ep;
+      const D = b.depth * sc * 0.25 * ep;
+      const floorH = bH / b.floors;
+
+      ctx.save();
+
+      // ─── FUNDAÇÃO (chão) ───
+      ctx.fillStyle = '#1a1a2e';
+      ctx.globalAlpha = 0.4 * ep;
+      ctx.fillRect(bx - W/2 - 2, by, W + 4, D * 2);
+      ctx.strokeStyle = b.color;
+      ctx.globalAlpha = 0.15 * ep;
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(bx - W/2 - 2, by, W + 4, D * 2);
+
+      // ─── CORPO DO PRÉDIO (3 faces: frente + lateral + topo) ───
+      const baseAlpha = 0.35 + b.energy * 0.45;
+
+      // Face lateral (direita)
+      ctx.beginPath();
+      ctx.moveTo(bx + W/2, by - H);
+      ctx.lineTo(bx + W/2 + D, by - H + D * 0.5);
+      ctx.lineTo(bx + W/2 + D, by + D * 0.5);
+      ctx.lineTo(bx + W/2, by);
+      ctx.closePath();
+      ctx.fillStyle = b.color;
+      ctx.globalAlpha = baseAlpha * 0.5 * ep;
+      ctx.fill();
+      ctx.strokeStyle = b.color;
+      ctx.globalAlpha = baseAlpha * 0.7 * ep;
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+
+      // Face frontal (principal)
+      ctx.fillStyle = b.color;
+      ctx.globalAlpha = baseAlpha * ep;
+      ctx.fillRect(bx - W/2, by - H, W, H);
+      ctx.strokeStyle = b.color;
+      ctx.globalAlpha = (baseAlpha + 0.15) * ep;
+      ctx.lineWidth = isHovered ? 1.5 : 0.7;
+      ctx.strokeRect(bx - W/2, by - H, W, H);
+
+      // ─── TIJOLOS / TEXTURA ───
+      if (ep > 0.6 && W > 10) {
+        ctx.globalAlpha = 0.08 * ep;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 0.2;
+        const brickH = floorH / 5;
+        for (let r = 0; r < Math.floor(H / brickH); r++) {
+          const ry = by - H + r * brickH;
+          const offset = (r % 2 === 0) ? 0 : W / 6;
+          for (let c = 0; c < 6; c++) {
+            const cx2 = bx - W/2 + c * (W/6) + offset;
+            if (cx2 < bx - W/2 || cx2 + W/6 > bx + W/2) continue;
+            ctx.strokeRect(cx2, ry, W/6, brickH);
+          }
+        }
+      }
+
+      // ─── ANDARES + JANELAS ───
+      for (let f = 0; f < b.floors; f++) {
+        const fy = by - H + f * floorH;
+        const hasWorkers = b.residentes.some(r => r.andar === f + 1);
+
+        // Luz do andar
+        if (hasWorkers) {
+          ctx.fillStyle = b.color;
+          ctx.globalAlpha = (0.1 + Math.sin(timeClock * 2 + f * 1.5) * 0.06) * ep;
+          ctx.fillRect(bx - W/2 + 2, fy + 2, W - 4, floorH - 3);
+        }
+
+        // Janelas
+        const numWin = Math.max(2, Math.floor(W / 12));
+        const winW = (W - 6) / numWin - 2;
+        const winH = floorH * 0.5;
+        const winY = fy + (floorH - winH) / 2;
+        for (let wi = 0; wi < numWin; wi++) {
+          const winX = bx - W/2 + 4 + wi * ((W - 6) / numWin);
+          ctx.fillStyle = hasWorkers ? b.color : '#0f172a';
+          ctx.globalAlpha = (hasWorkers ? 0.45 : 0.15) * ep;
+          ctx.fillRect(winX, winY, winW, winH);
+          ctx.strokeStyle = b.color;
+          ctx.globalAlpha = 0.2 * ep;
+          ctx.lineWidth = 0.3;
+          ctx.strokeRect(winX, winY, winW, winH);
+          // Brilho da janela
+          if (hasWorkers && Math.random() > 0.7) {
+            ctx.fillStyle = '#fef08a';
+            ctx.globalAlpha = 0.15 * ep;
+            ctx.fillRect(winX + 1, winY + 1, winW - 2, winH - 2);
+          }
+        }
+
+        // Separador de andar
+        ctx.beginPath();
+        ctx.moveTo(bx - W/2, fy);
+        ctx.lineTo(bx + W/2, fy);
+        ctx.strokeStyle = b.color;
+        ctx.globalAlpha = 0.2 * ep;
+        ctx.lineWidth = 0.4;
+        ctx.stroke();
+      }
+
+      // ─── PORTA DE ENTRADA ───
+      const doorW = Math.max(4, W * 0.18);
+      const doorH = floorH * 0.7;
+      const doorX = bx - doorW / 2;
+      const doorY = by - doorH;
+
+      // Portal da porta
+      ctx.fillStyle = '#0f172a';
+      ctx.globalAlpha = 0.8 * ep;
+      ctx.fillRect(doorX, doorY, doorW, doorH);
+      // Borda da porta
+      ctx.strokeStyle = b.color;
+      ctx.globalAlpha = 0.6 * ep;
+      ctx.lineWidth = isHovered ? 1.5 : 0.8;
+      ctx.strokeRect(doorX, doorY, doorW, doorH);
+      // Luz da porta (aberta)
+      if (b.occupancy > 0) {
+        ctx.fillStyle = b.color;
+        ctx.globalAlpha = (0.2 + Math.sin(timeClock * 3) * 0.1) * ep;
+        ctx.fillRect(doorX + 1, doorY + 1, doorW - 2, doorH - 2);
+      }
+      // Dossel sobre a porta
+      ctx.beginPath();
+      ctx.moveTo(doorX - 2, doorY);
+      ctx.lineTo(bx, doorY - 4);
+      ctx.lineTo(doorX + doorW + 2, doorY);
+      ctx.strokeStyle = b.color;
+      ctx.globalAlpha = 0.5 * ep;
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+
+      // ─── PLACA DA EMPRESA ───
+      if (W > 15) {
+        const signY = by - H - 6;
+        ctx.font = `bold ${Math.max(5, 7 * sc)}px 'Courier New', monospace`;
+        ctx.fillStyle = b.color;
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = 0.85 * ep;
+        ctx.fillText(b.empresaId || b.label, bx, signY);
+      }
+
+      // ─── GLOW DO TOPO ───
+      if (b.energy > 0.5) {
+        const grd = ctx.createRadialGradient(bx, by - H, 1, bx, by - H, W * 0.6);
+        grd.addColorStop(0, b.color);
+        grd.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grd;
+        ctx.globalAlpha = (0.06 + b.energy * 0.1) * ep;
+        ctx.fillRect(bx - W, by - H - W * 0.5, W * 2, W);
+      }
+
+      // ─── WORKER ENTRANDO/SAINDO (animação na porta) ───
+      if (isHovered && b.residentes.length > 0) {
+        const workerPhase = (timeClock * 1.5) % (Math.PI * 2);
+        const entering = Math.sin(workerPhase) > 0;
+        const wy = doorY + doorH * 0.5;
+        const wx = entering
+          ? doorX + doorW + 3 + Math.abs(Math.cos(workerPhase)) * 12
+          : doorX - 3 - Math.abs(Math.cos(workerPhase)) * 12;
+        ctx.beginPath();
+        ctx.arc(wx, wy, 2 * sc, 0, Math.PI * 2);
+        ctx.fillStyle = entering ? '#22d3ee' : '#fbbf24';
+        ctx.globalAlpha = 0.8;
+        ctx.fill();
+        ctx.font = `${Math.max(4, 5 * sc)}px 'Courier New', monospace`;
+        ctx.fillStyle = '#94a3b8';
+        ctx.textAlign = 'left';
+        ctx.globalAlpha = 0.6;
+        ctx.fillText(entering ? 'entrando' : 'saindo', wx + 4, wy + 2);
+      }
+
+      // ─── HOVER DETAIL ───
+      if (isHovered) {
+        ctx.font = `${Math.max(5, 6 * sc)}px 'Courier New', monospace`;
+        ctx.fillStyle = '#94a3b8';
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = 0.7;
+        ctx.fillText(`${b.label} · ${b.occupancy}/${b.capacity} · ${b.floors} andares`, bx, by + D * 2 + 8);
+        ctx.fillStyle = b.color;
+        ctx.fillText(`⚡ ${(b.energy * 100).toFixed(0)}%`, bx, by + D * 2 + 17);
+      }
+
+      ctx.restore();
+    }
+  };
+  BuildingSystem.generateAll();
+
+  // ═══════════════════════════════════════════════════════════════
+  // CITY SCALE — Dimensões Reais da Cidade
+  // ═══════════════════════════════════════════════════════════════
+  // Escala: 1 unidade = 10 metros
+  // Cidade total: ~2.5km x ~2.0km x ~0.6km
+  // Setores: ~200-400m de diâmetro
+  // Ruas: 10-15m, Avenidas: 20-30m, Rodovias: 40-60m
+  // Prédios residenciais: 10-30m (2-8 andares)
+  // Prédios comerciais: 20-80m (5-20 andares)
+  // Fábricas: 8-15m (1-3 andares)
+  const CityScale = {
+    UNIT_METERS: 10,          // 1 unidade = 10 metros
+    CITY_WIDTH_KM: 2.5,       // Largura total da cidade em km
+    CITY_HEIGHT_KM: 2.0,      // Profundidade total em km
+    CITY_Z_KM: 0.6,           // Altura total em km
+
+    // ─── Dimensões reais dos elementos ───
+    ROADS: {
+      rodovia:   { width_m: 50, lanes: 6, speed_kmh: 120, label: 'Rodovia' },
+      estrada:   { width_m: 25, lanes: 4, speed_kmh: 80,  label: 'Estrada' },
+      avenida:   { width_m: 20, lanes: 4, speed_kmh: 60,  label: 'Avenida' },
+      rua:       { width_m: 10, lanes: 2, speed_kmh: 30,  label: 'Rua' },
+      ciclovia:  { width_m: 3,  lanes: 1, speed_kmh: 15,  label: 'Ciclovia' },
+    },
+
+    BUILDINGS: {
+      residencia:      { height_m: [10, 30],  floors: [2, 8],  area_m2: [60, 200] },
+      escritorio:      { height_m: [20, 80],  floors: [5, 20], area_m2: [100, 500] },
+      fabrica:         { height_m: [8, 15],   floors: [1, 3],  area_m2: [500, 2000] },
+      laboratorio:     { height_m: [15, 40],  floors: [3, 10], area_m2: [200, 800] },
+      terminal:        { height_m: [8, 12],   floors: [1, 2],  area_m2: [1000, 3000] },
+      hospital:        { height_m: [25, 60],  floors: [6, 15], area_m2: [300, 1000] },
+      universidade:    { height_m: [15, 35],  floors: [3, 8],  area_m2: [400, 1200] },
+      centro_comercial:{ height_m: [12, 25],  floors: [3, 6],  area_m2: [800, 3000] },
+    },
+
+    VEHICLES: {
+      carro:    { length_m: 4.5, width_m: 1.8, speed_kmh: 60 },
+      caminhao: { length_m: 12,  width_m: 2.5, speed_kmh: 80 },
+      onibus:   { length_m: 12,  width_m: 2.5, speed_kmh: 40 },
+      drone:    { length_m: 0.5, width_m: 0.5, speed_kmh: 120 },
+      moto:     { length_m: 2.2, width_m: 0.8, speed_kmh: 70 },
+    },
+
+    // ─── Converte unidades internas para metros ───
+    toMeters(units) { return units * this.UNIT_METERS; },
+    toKm(units) { return (units * this.UNIT_METERS) / 1000; },
+    fromMeters(m) { return m / this.UNIT_METERS; },
+    fromKm(km) { return (km * 1000) / this.UNIT_METERS; },
+
+    // ─── Área total da cidade em km² ───
+    get totalAreaKm2() {
+      return this.CITY_WIDTH_KM * this.CITY_HEIGHT_KM;
+    },
+
+    // ─── Densidade de construções ───
+    get density() {
+      let totalBuildingArea = 0;
+      for (const b of BuildingSystem.buildings) {
+        totalBuildingArea += (b.width || 10) * (b.depth || 8) * this.UNIT_METERS * this.UNIT_METERS;
+      }
+      return totalBuildingArea / (this.totalAreaKm2 * 1e6);
+    },
+
+    // ─── Distância entre dois pontos em metros ───
+    distanceMeters(p1, p2) {
+      const dx = (p2.x - p1.x) * this.UNIT_METERS;
+      const dy = (p2.y - p1.y) * this.UNIT_METERS;
+      const dz = (p2.z - p1.z) * this.UNIT_METERS;
+      return Math.sqrt(dx*dx + dy*dy + dz*dz);
+    },
+
+    // ─── Distância de rua (manhattan) ───
+    streetDistanceMeters(p1, p2) {
+      return (Math.abs(p2.x - p1.x) + Math.abs(p2.y - p1.y) + Math.abs(p2.z - p1.z)) * this.UNIT_METERS;
+    },
+
+    // ─── Tempo de deslocamento estimado ───
+    travelTimeMinutes(p1, p2, vehicleType = 'carro') {
+      const dist = this.distanceMeters(p1, p2);
+      const v = this.VEHICLES[vehicleType] || this.VEHICLES.carro;
+      return (dist / v.speed_kmh) * 60;
+    },
+  };
+
+  // ─── Escala visual ───
+  const scaleBarEl = document.getElementById('scale-line');
+  const scaleLabelEl = document.getElementById('scale-label');
+  const scaleLabelEndEl = document.getElementById('scale-label-end');
+  const coordDisplayEl = document.getElementById('coord-display');
+
+  function updateScaleBar(zoom) {
+    const baseWidth = 100;
+    const metersPerPixel = (CityScale.CITY_WIDTH_KM * 1000) / (W * zoom);
+    const barMeters = baseWidth * metersPerPixel;
+    const barPixels = baseWidth;
+    scaleBarEl.style.width = barPixels + 'px';
+    scaleLabelEl.textContent = '0m';
+    if (barMeters >= 1000) {
+      scaleLabelEndEl.textContent = (barMeters / 1000).toFixed(1) + 'km';
+    } else {
+      scaleLabelEndEl.textContent = Math.round(barMeters) + 'm';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // MINIMAPA — Topologia 2D da Cidade
+  // ═══════════════════════════════════════════════════════════════
+  const Minimap = {
+    canvas: null,
+    ctx: null,
+
+    init() {
+      this.canvas = document.getElementById('minimap');
+      if (!this.canvas) return;
+      this.ctx = this.canvas.getContext('2d');
+    },
+
+    render(rotY, rotX, mouseX, mouseY) {
+      if (!this.ctx) return;
+      const mc = this.ctx;
+      const w = this.canvas.width;
+      const h = this.canvas.height;
+
+      // Fundo
+      mc.fillStyle = 'rgba(5,9,20,0.95)';
+      mc.fillRect(0, 0, w, h);
+
+      // Grade de fundo (topológica)
+      mc.strokeStyle = 'rgba(100,116,139,0.08)';
+      mc.lineWidth = 0.5;
+      for (let i = 0; i <= w; i += 15) { mc.beginPath(); mc.moveTo(i, 0); mc.lineTo(i, h); mc.stroke(); }
+      for (let j = 0; j <= h; j += 15) { mc.beginPath(); mc.moveTo(0, j); mc.lineTo(w, j); mc.stroke(); }
+
+      const cx = w / 2;
+      const cy = h / 2;
+      const scale = 0.22;
+      const cosR = Math.cos(rotY * 0.3);
+      const sinR = Math.sin(rotY * 0.3);
+
+      // ─── Rotas no minimapa ───
+      if (typeof CITY_ROUTES !== 'undefined') {
+        for (const route of CITY_ROUTES) {
+          const x1 = cx + (route.from.x * cosR - route.from.z * sinR) * scale;
+          const y1 = cy + (route.from.y * cosR + route.from.z * sinR) * scale * 0.6;
+          const x2 = cx + (route.to.x * cosR - route.to.z * sinR) * scale;
+          const y2 = cy + (route.to.y * cosR + route.to.z * sinR) * scale * 0.6;
+          mc.beginPath();
+          mc.moveTo(x1, y1);
+          mc.lineTo(x2, y2);
+          mc.strokeStyle = route.color;
+          mc.globalAlpha = route.type === 'rodovia' ? 0.5 : (route.type === 'ciclovia' ? 0.15 : 0.3);
+          mc.lineWidth = route.type === 'rodovia' ? 1.5 : (route.type === 'ciclovia' ? 0.3 : 0.6);
+          mc.stroke();
+        }
+        mc.globalAlpha = 1;
+      }
+
+      // ─── Rotas aéreas ───
+      if (typeof CITY_AIR_ROUTES !== 'undefined') {
+        for (const ar of CITY_AIR_ROUTES) {
+          const x1 = cx + (ar.from_pos.x * cosR - ar.from_pos.z * sinR) * scale;
+          const y1 = cy + (ar.from_pos.y * cosR + ar.from_pos.z * sinR) * scale * 0.6;
+          const x2 = cx + (ar.to_pos.x * cosR - ar.to_pos.z * sinR) * scale;
+          const y2 = cy + (ar.to_pos.y * cosR + ar.to_pos.z * sinR) * scale * 0.6;
+          mc.beginPath();
+          mc.setLineDash([2, 2]);
+          mc.moveTo(x1, y1);
+          mc.lineTo(x2, y2);
+          mc.strokeStyle = ar.color;
+          mc.globalAlpha = 0.3;
+          mc.lineWidth = 0.5;
+          mc.stroke();
+          mc.setLineDash([]);
+        }
+        mc.globalAlpha = 1;
+      }
+
+      // ─── Setores ───
+      for (const sector of CITY_SECTORS) {
+        const sx = cx + (sector.x * cosR - sector.z * sinR) * scale;
+        const sy = cy + (sector.y * cosR + sector.z * sinR) * scale * 0.6;
+        const sr = Math.max(4, (sector.radius || 50) * scale * 0.5);
+
+        // Glow do setor
+        const grd = mc.createRadialGradient(sx, sy, 1, sx, sy, sr * 2);
+        grd.addColorStop(0, sector.color);
+        grd.addColorStop(1, 'rgba(0,0,0,0)');
+        mc.fillStyle = grd;
+        mc.globalAlpha = 0.25;
+        mc.beginPath();
+        mc.arc(sx, sy, sr * 2, 0, Math.PI * 2);
+        mc.fill();
+
+        // Ponto do setor
+        mc.beginPath();
+        mc.arc(sx, sy, sr, 0, Math.PI * 2);
+        mc.fillStyle = sector.color;
+        mc.globalAlpha = 0.7;
+        mc.fill();
+        mc.strokeStyle = sector.color;
+        mc.globalAlpha = 0.9;
+        mc.lineWidth = 0.8;
+        mc.stroke();
+
+        // Label
+        mc.font = '6px Courier New';
+        mc.fillStyle = sector.color;
+        mc.textAlign = 'center';
+        mc.globalAlpha = 0.8;
+        mc.fillText(sector.emoji + ' ' + sector.name, sx, sy - sr - 3);
+      }
+
+      mc.globalAlpha = 1;
+
+      // ─── Borda ───
+      mc.strokeStyle = 'rgba(168,85,247,0.3)';
+      mc.lineWidth = 1;
+      mc.strokeRect(0, 0, w, h);
+
+      // ─── Legenda ───
+      mc.font = '6px Courier New';
+      mc.fillStyle = '#64748b';
+      mc.textAlign = 'left';
+      mc.fillText(`📐 ${CityScale.CITY_WIDTH_KM}km x ${CityScale.CITY_HEIGHT_KM}km`, 4, h - 20);
+      mc.fillText(`📐 ${(CityScale.totalAreaKm2).toFixed(1)} km²`, 4, h - 12);
+      mc.fillText(`🏢 ${BuildingSystem.buildings.length} prédios`, 4, h - 4);
+
+      // ─── Visão do observador ───
+      const obsX = cx;
+      const obsY = cy - 8;
+      mc.beginPath();
+      mc.moveTo(obsX, obsY);
+      mc.lineTo(obsX - 3, obsY + 5);
+      mc.lineTo(obsX + 3, obsY + 5);
+      mc.closePath();
+      mc.fillStyle = '#fef08a';
+      mc.globalAlpha = 0.8;
+      mc.fill();
+      mc.globalAlpha = 1;
+    }
+  };
+  Minimap.init();
+
+  // ═══════════════════════════════════════════════════════════════
+  // VEHICLE SYSTEM — Carros, Caminhões, Ônibus nas vias
+  // ═══════════════════════════════════════════════════════════════
+  const VehicleSystem = {
+    vehicles: [],
+    MAX_VEHICLES: 200,
+
+    TYPES: {
+      carro: { label: 'Carro', color: '#60a5fa', w: 3, h: 2, speed: 1.0, capacity: 4 },
+      caminhao: { label: 'Caminhão', color: '#fbbf24', w: 5, h: 2.5, speed: 0.6, capacity: 1 },
+      onibus: { label: 'Ônibus', color: '#34d399', w: 6, h: 2.5, speed: 0.5, capacity: 40 },
+      drone: { label: 'Drone', color: '#22d3ee', w: 1.5, h: 1.5, speed: 1.5, capacity: 1 },
+      moto: { label: 'Moto', color: '#f472b6', w: 2, h: 1.5, speed: 1.3, capacity: 1 },
+    },
+
+    generateVehicles() {
+      this.vehicles = [];
+      if (typeof CITY_ROUTES === 'undefined') return;
+      for (const route of CITY_ROUTES) {
+        if (route.type === 'ciclovia') continue;
+        const numVehicles = route.type === 'rodovia' ? 4 : (route.type === 'estrada' ? 3 : (route.type === 'avenida' ? 2 : 1));
+        for (let i = 0; i < numVehicles && this.vehicles.length < this.MAX_VEHICLES; i++) {
+          const typeWeights = {
+            rodovia: ['carro', 'carro', 'caminhao', 'onibus'],
+            estrada: ['carro', 'caminhao', 'carro'],
+            avenida: ['carro', 'onibus', 'moto'],
+            rua: ['carro', 'moto', 'carro'],
+          };
+          const types = typeWeights[route.type] || ['carro'];
+          const vType = types[Math.floor(Math.random() * types.length)];
+          const tmpl = this.TYPES[vType];
+          this.vehicles.push({
+            id: `V${this.vehicles.length}`,
+            type: vType,
+            route,
+            t: Math.random(),
+            speed: tmpl.speed * (0.7 + Math.random() * 0.6) * (route.type === 'rodovia' ? 1.5 : 1.0),
+            label: tmpl.label,
+            color: tmpl.color,
+            w: tmpl.w, h: tmpl.h,
+            capacity: tmpl.capacity,
+            ocupacao: Math.floor(Math.random() * tmpl.capacity),
+            direction: Math.random() > 0.5 ? 1 : -1,
+            blinker: 0,
+          });
+        }
+      }
+    },
+
+    tick() {
+      for (const v of this.vehicles) {
+        v.t += v.speed * 0.003 * v.direction;
+        if (v.t >= 1.0) v.t -= 1.0;
+        if (v.t < 0) v.t += 1.0;
+        v.blinker = (v.blinker + 0.05) % (Math.PI * 2);
+      }
+    },
+
+    renderVehicles(ctx, cosY, sinY, cosX, sinX, respPulse, timeClock, fov, cx, cy, zoom) {
+      if (typeof CITY_ROUTES === 'undefined') return;
+      ctx.save();
+      for (const v of this.vehicles) {
+        const route = v.route;
+        const pFrom = project(route.from.x, route.from.y, route.from.z, cosY, sinY, cosX, sinX, respPulse);
+        const pTo = project(route.to.x, route.to.y, route.to.z, cosY, sinY, cosX, sinX, respPulse);
+        if (pFrom.pz + fov <= 20 || pTo.pz + fov <= 20) continue;
+        const s1 = fov / (fov + pFrom.pz + 240);
+        const s2 = fov / (fov + pTo.pz + 240);
+        const x1 = cx + pFrom.px * s1, y1 = cy + pFrom.py * s1;
+        const x2 = cx + pTo.px * s2, y2 = cy + pTo.py * s2;
+        const pMid = project(route.mid.x, route.mid.y, route.mid.z, cosY, sinY, cosX, sinX, respPulse);
+        const sm = fov / (fov + pMid.pz + 240);
+        const mx = cx + pMid.px * sm, my = cy + pMid.py * sm;
+
+        const t = v.t;
+        const vx = (1-t)*(1-t)*x1 + 2*(1-t)*t*mx + t*t*x2;
+        const vy = (1-t)*(1-t)*y1 + 2*(1-t)*t*my + t*t*y2;
+
+        const vw = v.w * s1 * 0.5;
+        const vh = v.h * s1 * 0.5;
+        if (vw < 0.8) continue;
+
+        // Carroça do veículo
+        ctx.fillStyle = v.color;
+        ctx.globalAlpha = 0.65;
+        ctx.fillRect(vx - vw/2, vy - vh/2, vw, vh);
+        ctx.strokeStyle = v.color;
+        ctx.globalAlpha = 0.4;
+        ctx.lineWidth = 0.4;
+        ctx.strokeRect(vx - vw/2, vy - vh/2, vw, vh);
+
+        // Farol (piscando)
+        const farolOn = Math.sin(v.blinker * 3) > 0;
+        if (farolOn) {
+          ctx.fillStyle = '#fef08a';
+          ctx.globalAlpha = 0.6;
+          ctx.beginPath();
+          ctx.arc(vx + (v.direction > 0 ? vw/2 : -vw/2), vy, 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Letreiro do tipo (quando zoom alto)
+        if (zoom < 0.35 && vw > 3) {
+          ctx.font = `${Math.max(3, 4 * s1)}px 'Courier New', monospace`;
+          ctx.fillStyle = v.color;
+          ctx.textAlign = 'center';
+          ctx.globalAlpha = 0.5;
+          ctx.fillText(v.label, vx, vy - vh/2 - 2);
+        }
+      }
+      ctx.restore();
+    }
+  };
+  VehicleSystem.generateVehicles();
+
+  // ═══════════════════════════════════════════════════════════════
+  // WORKER ACTIVITY — Workers realizando seus processos
+  // ═══════════════════════════════════════════════════════════════
+  const WorkerActivitySystem = {
+    activities: [],
+    MAX_ACTIVITIES: 300,
+
+    generateActivities() {
+      this.activities = [];
+      for (const sector of CITY_SECTORS) {
+        for (const emp of sector.empresas) {
+          if (!emp.workers) continue;
+          for (const w of emp.workers) {
+            // Cada worker tem atividade vinculada ao seu processo
+            const proc = emp.processos.find(p => p.name === w.vinculo);
+            if (!proc) continue;
+            this.activities.push({
+              workerId: w.id,
+              workerName: w.nome,
+              cargo: w.cargo,
+              empresaId: emp.id,
+              empresaName: emp.name,
+              sectorId: sector.id,
+              processName: w.vinculo,
+              processMetrics: proc.metrics,
+              produtividade: w.produtividade,
+              x: proc.x + (Math.random() - 0.5) * 12,
+              y: proc.y + (Math.random() - 0.5) * 8,
+              z: proc.z + (Math.random() - 0.5) * 10,
+              // Atividade atual
+              phase: Math.random() * Math.PI * 2,
+              intensity: 0.3 + w.produtividade * 0.7,
+              // Tipo de atividade visual
+              activityType: this.getActivityType(w.cargo),
+            });
+          }
+        }
+      }
+    },
+
+    getActivityType(cargo) {
+      const c = cargo.toLowerCase();
+      if (c.includes('dev') || c.includes('analista') || c.includes('programador')) return 'coding';
+      if (c.includes('médico') || c.includes('enferm') || c.includes('farmac')) return 'medical';
+      if (c.includes('motorista') || c.includes('operador') || c.includes('mecânico')) return 'mechanical';
+      if (c.includes('vendedor') || c.includes('comercial') || c.includes('corretor')) return 'selling';
+      if (c.includes('professor') || c.includes('pesquisador')) return 'teaching';
+      if (c.includes('advogado') || c.includes('servidor')) return 'legal';
+      if (c.includes('engenheiro') || c.includes('técnico')) return 'engineering';
+      return 'generic';
+    },
+
+    ACTIVITY_COLORS: {
+      coding: '#22d3ee',
+      medical: '#34d399',
+      mechanical: '#fbbf24',
+      selling: '#f472b6',
+      teaching: '#818cf8',
+      legal: '#94a3b8',
+      engineering: '#a78bfa',
+      generic: '#64748b',
+    },
+
+    ACTIVITY_ICONS: {
+      coding: '⌨',
+      medical: '⚕',
+      mechanical: '⚙',
+      selling: '💱',
+      teaching: '📖',
+      legal: '⚖',
+      engineering: '🔧',
+      generic: '◉',
+    },
+
+    renderActivities(ctx, cosY, sinY, cosX, sinX, respPulse, timeClock, fov, cx, cy, zoom) {
+      ctx.save();
+      for (const act of this.activities) {
+        const p = project(act.x, act.y, act.z, cosY, sinY, cosX, sinX, respPulse);
+        if (p.pz + fov <= 20) continue;
+        const s = fov / (fov + p.pz + 240);
+        const ax = cx + p.px * s;
+        const ay = cy + p.py * s;
+        const aR = Math.max(1, 2.5 * s);
+
+        const col = this.ACTIVITY_COLORS[act.activityType] || '#64748b';
+        const pulse = Math.sin(timeClock * (2 + act.intensity * 3) + act.phase);
+
+        // Halo da atividade
+        ctx.beginPath();
+        ctx.arc(ax, ay, aR * (2 + pulse * 0.5), 0, Math.PI * 2);
+        ctx.fillStyle = col;
+        ctx.globalAlpha = 0.06 * act.intensity;
+        ctx.fill();
+
+        // Ponto central
+        ctx.beginPath();
+        ctx.arc(ax, ay, aR, 0, Math.PI * 2);
+        ctx.fillStyle = col;
+        ctx.globalAlpha = (0.4 + act.intensity * 0.4) * (0.7 + pulse * 0.3);
+        ctx.fill();
+
+        // Ícone (quando zoom alto)
+        if (zoom < 0.25 && aR > 1.5) {
+          ctx.font = `${Math.max(4, 5 * s)}px 'Courier New', monospace`;
+          ctx.fillStyle = col;
+          ctx.textAlign = 'center';
+          ctx.globalAlpha = 0.5;
+          ctx.fillText(this.ACTIVITY_ICONS[act.activityType] || '◉', ax, ay - aR - 2);
+        }
+
+        // Linha de processo (worker → processo)
+        if (zoom < 0.2 && aR > 1) {
+          const proc = CITY_SECTORS.find(sec => sec.id === act.sectorId)
+            ?.empresas.find(e => e.id === act.empresaId)
+            ?.processos.find(p => p.name === act.processName);
+          if (proc) {
+            const pp = project(proc.x, proc.y, proc.z, cosY, sinY, cosX, sinX, respPulse);
+            if (pp.pz + fov > 20) {
+              const ps = fov / (fov + pp.pz + 240);
+              const px2 = cx + pp.px * ps;
+              const py2 = cy + pp.py * ps;
+              ctx.beginPath();
+              ctx.moveTo(ax, ay);
+              ctx.lineTo(px2, py2);
+              ctx.strokeStyle = col;
+              ctx.globalAlpha = 0.08;
+              ctx.lineWidth = 0.3;
+              ctx.stroke();
+            }
+          }
+        }
+      }
+      ctx.restore();
+    }
+  };
+  WorkerActivitySystem.generateActivities();
+
+  // ═══════════════════════════════════════════════════════════════
+  // SUPPLY CHAIN — Fábricas + Lojas + Logística
+  // ═══════════════════════════════════════════════════════════════
+  const SupplyChain = {
+    nodes: [],
+
+    generate() {
+      this.nodes = [];
+      // Fábricas de veículos
+      const vehicleFactories = [
+        { name: 'AutoFactory', type: 'fabrica_veiculos', produces: ['carro', 'caminhao', 'moto'], output: 120, sector: 'S04' },
+        { name: 'DroneWorks', type: 'fabrica_drones', produces: ['drone'], output: 80, sector: 'S05' },
+        { name: 'BusLine Mfg', type: 'fabrica_onibus', produces: ['onibus'], output: 40, sector: 'S08' },
+      ];
+      for (const f of vehicleFactories) {
+        const sector = CITY_SECTORS.find(s => s.id === f.sector);
+        if (!sector) continue;
+        this.nodes.push({
+          id: `SUP${f.name.replace(/\s/g, '')}`,
+          name: f.name,
+          type: f.type,
+          x: sector.x + (Math.random() - 0.5) * 100,
+          y: sector.y - 5,
+          z: sector.z + (Math.random() - 0.5) * 80,
+          produces: f.produces,
+          output: f.output,
+          stock: Math.floor(f.output * 0.8),
+          sectorId: f.sector,
+          color: '#f87171',
+          icon: '🏭',
+        });
+      }
+
+      // Lojas de suprimentos
+      const shops = [
+        { name: 'TechParts', type: 'loja_tech', supplies: ['hardware', 'software', 'cloud'], sector: 'S05' },
+        { name: 'BioSupplies', type: 'loja_bio', supplies: ['reagentes', 'amostras', 'equipamentos'], sector: 'S01' },
+        { name: 'AgroInput', type: 'loja_agro', supplies: ['fertilizantes', 'sementes', 'defensivos'], sector: 'S11' },
+        { name: 'BuildMat', type: 'loja_construcao', supplies: ['cimento', 'aço', 'madeira'], sector: 'S13' },
+        { name: 'EcoRecursos', type: 'loja_energia', supplies: ['painéis', 'baterias', 'turbines'], sector: 'S09' },
+      ];
+      for (const sh of shops) {
+        const sector = CITY_SECTORS.find(s => s.id === sh.sector);
+        if (!sector) continue;
+        this.nodes.push({
+          id: `SUP${sh.name.replace(/\s/g, '')}`,
+          name: sh.name,
+          type: sh.type,
+          x: sector.x + (Math.random() - 0.5) * 80,
+          y: sector.y - 3,
+          z: sector.z + (Math.random() - 0.5) * 60,
+          supplies: sh.supplies,
+          stock: Math.floor(Math.random() * 500 + 100),
+          sectorId: sh.sector,
+          color: '#fbbf24',
+          icon: '🏪',
+        });
+      }
+
+      // Centros de distribuição
+      const distCenters = [
+        { name: 'DistHub Norte', x: 50, y: -300, z: 50 },
+        { name: 'DistHub Sul', x: -50, y: 300, z: -50 },
+        { name: 'DistHub Leste', x: 350, y: 0, z: 0 },
+      ];
+      for (const dc of distCenters) {
+        this.nodes.push({
+          id: `SUP${dc.name.replace(/\s/g, '')}`,
+          name: dc.name,
+          type: 'distribuicao',
+          x: dc.x, y: dc.y, z: dc.z,
+          stock: Math.floor(Math.random() * 2000 + 500),
+          color: '#a78bfa',
+          icon: '📦',
+          connections: CITY_SECTORS.slice(0, 5).map(s => s.id),
+        });
+      }
+    },
+
+    renderSupplyNodes(ctx, cosY, sinY, cosX, sinX, respPulse, timeClock, fov, cx, cy, zoom) {
+      ctx.save();
+      for (const node of this.nodes) {
+        const p = project(node.x, node.y, node.z, cosY, sinY, cosX, sinX, respPulse);
+        if (p.pz + fov <= 20) continue;
+        const s = fov / (fov + p.pz + 240);
+        const nx = cx + p.px * s;
+        const ny = cy + p.py * s;
+        const nR = Math.max(4, 8 * s);
+
+        // Glow
+        const grd = ctx.createRadialGradient(nx, ny, 1, nx, ny, nR * 2);
+        grd.addColorStop(0, node.color);
+        grd.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grd;
+        ctx.globalAlpha = 0.15;
+        ctx.fillRect(nx - nR * 2, ny - nR * 2, nR * 4, nR * 4);
+
+        // Nó
+        ctx.beginPath();
+        ctx.arc(nx, ny, nR, 0, Math.PI * 2);
+        ctx.fillStyle = node.color;
+        ctx.globalAlpha = 0.5;
+        ctx.fill();
+        ctx.strokeStyle = node.color;
+        ctx.globalAlpha = 0.7;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+
+        // Ícone + nome
+        ctx.font = `${Math.max(5, 7 * s)}px 'Courier New', monospace`;
+        ctx.fillStyle = node.color;
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = 0.7;
+        ctx.fillText(`${node.icon} ${node.name}`, nx, ny - nR - 4);
+      }
+      ctx.restore();
+    }
+  };
+  SupplyChain.generate();
+
+  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
+  // QUANTUM ENGINE — Simulação Quântica da Cidade
+  // ═══════════════════════════════════════════════════════════════
+  const QuantumEngine = {
+    qubits: {},
+    entanglements: [],
+    coherenceTime: 1000,
+    decoherenceRate: 0.001,
+    tick: 0,
+
+    createQubit(id) {
+      const theta = Math.random() * Math.PI;
+      const phi = Math.random() * Math.PI * 2;
+      this.qubits[id] = {
+        α: Math.cos(theta / 2),
+        β: Math.sin(theta / 2),
+        θ: theta, φ: phi,
+        entangled: [],
+        collapsed: false,
+        measuredValue: null,
+        birthTick: this.tick,
+        decoherence: 0,
+        superposition: { receita: [0.5, 1.5], saude: [0.3, 0.9], crescimento: [-0.1, 0.3] },
+        tunnelProbability: 0.05,
+      };
+      return this.qubits[id];
+    },
+
+    entangle(id1, id2, strength = 0.8) {
+      const q1 = this.qubits[id1], q2 = this.qubits[id2];
+      if (!q1 || !q2) return;
+      q1.entangled.push({ id: id2, strength });
+      q2.entangled.push({ id: id1, strength });
+      this.entanglements.push([id1, id2, strength]);
+    },
+
+    rotateQubit(id, dθ, dφ) {
+      const q = this.qubits[id];
+      if (!q || q.collapsed) return;
+      q.θ = (q.θ + dθ) % (Math.PI * 2);
+      q.φ = (q.φ + dφ) % (Math.PI * 2);
+      q.α = Math.cos(q.θ / 2);
+      q.β = Math.sin(q.θ / 2);
+      const p0 = q.α * q.α;
+      q.superposition.receita = [0.3 + p0 * 0.4, 0.8 + p0 * 0.7];
+      q.superposition.saude = [0.2 + p0 * 0.3, 0.7 + p0 * 0.3];
+    },
+
+    tunnel(id) {
+      const q = this.qubits[id];
+      if (!q || q.collapsed) return false;
+      if (Math.random() < q.tunnelProbability) {
+        q.θ = Math.PI - q.θ;
+        q.superposition.receita = [q.superposition.receita[1], q.superposition.receita[0]];
+        q.superposition.crescimento = [0.1, 0.5];
+        q.tunnelProbability *= 0.3;
+        return true;
+      }
+      return false;
+    },
+
+    measure(id) {
+      const q = this.qubits[id];
+      if (!q || q.collapsed) return q?.measuredValue;
+      const p0 = q.α * q.α;
+      const result = Math.random() < p0 ? 0 : 1;
+      q.collapsed = true;
+      q.measuredValue = result;
+      for (const ent of q.entangled) {
+        const qe = this.qubits[ent.id];
+        if (qe && !qe.collapsed) {
+          qe.collapsed = true;
+          qe.measuredValue = result;
+        }
+      }
+      return result;
+    },
+
+    evolve() {
+      this.tick++;
+      for (const [id, q] of Object.entries(this.qubits)) {
+        if (q.collapsed) {
+          if (this.tick - q.birthTick > this.coherenceTime) {
+            q.collapsed = false;
+            q.measuredValue = null;
+            q.decoherence = 0;
+            q.birthTick = this.tick;
+            q.tunnelProbability = 0.05;
+          }
+          continue;
+        }
+        this.rotateQubit(id, 0.02 + Math.sin(this.tick * 0.01) * 0.01, 0.015);
+        this.tunnel(id);
+        q.decoherence += this.decoherenceRate;
+        if (q.decoherence > 1.0) this.measure(id);
+        for (const ent of q.entangled) {
+          const qe = this.qubits[ent.id];
+          if (qe && !qe.collapsed) {
+            qe.θ += Math.sin(q.θ) * ent.strength * 0.1;
+          }
+        }
+      }
+    },
+
+    getCloud(id) {
+      const q = this.qubits[id];
+      if (!q) return null;
+      const p0 = q.α * q.α;
+      return {
+        p0, p1: 1 - p0,
+        superposed: !q.collapsed,
+        coherence: 1 - q.decoherence,
+        interference: Math.cos(q.φ) * p0 * (1 - p0) * 4,
+        tunnelActive: q.tunnelProbability > 0.03,
+      };
+    },
+  };
+
+  // Entrelaçamentos iniciais
+  const ENTANGLE_PAIRS = [
+    ['S01','S07',0.9],['S05','S02',0.85],['S03','S12',0.8],['S04','S09',0.75],
+    ['S08','S03',0.7],['S01','S11',0.6],['S05','S12',0.65],['S10','S05',0.55],
+    ['S13','S14',0.5],['S15','S07',0.7],
+  ];
+  for (const [a, b, str] of ENTANGLE_PAIRS) {
+    QuantumEngine.createQubit(a);
+    QuantumEngine.createQubit(b);
+    QuantumEngine.entangle(a, b, str);
+  }
+  for (const s of CITY_SECTORS) {
+    for (const e of s.empresas) {
+      QuantumEngine.createQubit(e.id);
+      QuantumEngine.entangle(e.id, s.id, 0.4 + Math.random() * 0.3);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // QUANTUM VISUALIZER — Efeitos quânticos no canvas
+  // ═══════════════════════════════════════════════════════════════
+  const QuantumViz = {
+    render(ctx, cosY, sinY, cosX, sinX, respPulse, timeClock, fov, cx, cy, zoom) {
+      if (zoom > 0.6) return;
+      ctx.save();
+
+      // Nuvens de probabilidade + tunelamento por setor
+      for (const sector of CITY_SECTORS) {
+        const cloud = QuantumEngine.getCloud(sector.id);
+        const q = QuantumEngine.qubits[sector.id];
+        if (!cloud || !q) continue;
+        const p = project(sector.x, sector.y, sector.z, cosY, sinY, cosX, sinX, respPulse);
+        if (p.pz + fov <= 20) continue;
+        const s = fov / (fov + p.pz + 240);
+        const sx = cx + p.px * s, sy = cy + p.py * s;
+        const baseR = (sector.radius || 50) * s * 0.5;
+
+        // Nuvem de probabilidade
+        if (cloud.superposed) {
+          const pulseR = baseR * (1.3 + cloud.interference * 0.5);
+          const grd = ctx.createRadialGradient(sx, sy, 0, sx, sy, pulseR);
+          grd.addColorStop(0, sector.color + '40');
+          grd.addColorStop(0.5, sector.color + '15');
+          grd.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = grd;
+          ctx.globalAlpha = cloud.coherence * 0.35;
+          ctx.fillRect(sx - pulseR, sy - pulseR, pulseR * 2, pulseR * 2);
+
+          // Onda de probabilidade
+          ctx.beginPath();
+          for (let i = 0; i <= 360; i += 4) {
+            const a = (i * Math.PI) / 180;
+            const wR = baseR * (1 + Math.sin(a * 3 + timeClock * 2 + q.φ) * 0.12 * cloud.coherence);
+            const wx = sx + Math.cos(a) * wR, wy = sy + Math.sin(a) * wR;
+            i === 0 ? ctx.moveTo(wx, wy) : ctx.lineTo(wx, wy);
+          }
+          ctx.closePath();
+          ctx.strokeStyle = sector.color;
+          ctx.globalAlpha = 0.12 * cloud.coherence;
+          ctx.lineWidth = 0.7;
+          ctx.stroke();
+
+          // Anel de interferência
+          if (Math.abs(cloud.interference) > 0.1) {
+            ctx.beginPath();
+            ctx.arc(sx, sy, pulseR * 0.8, 0, Math.PI * 2);
+            ctx.strokeStyle = cloud.interference > 0 ? '#22d3ee' : '#f472b6';
+            ctx.globalAlpha = Math.abs(cloud.interference) * 0.25;
+            ctx.lineWidth = 1 + Math.abs(cloud.interference);
+            ctx.stroke();
+          }
+        }
+
+        // Tunelamento visual
+        if (cloud.tunnelActive) {
+          const grd2 = ctx.createRadialGradient(sx, sy, 0, sx, sy, baseR * 2);
+          grd2.addColorStop(0, '#fef08a');
+          grd2.addColorStop(0.3, '#fef08a40');
+          grd2.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = grd2;
+          ctx.globalAlpha = 0.12 + Math.sin(timeClock * 8) * 0.08;
+          ctx.fillRect(sx - baseR * 2, sy - baseR * 2, baseR * 4, baseR * 4);
+
+          // Raio zigzag
+          if (q.entangled.length > 0 && Math.random() > 0.97) {
+            const t = q.entangled[0];
+            const ts = CITY_SECTORS.find(s => s.id === t.id);
+            if (ts) {
+              const tp = project(ts.x, ts.y, ts.z, cosY, sinY, cosX, sinX, respPulse);
+              if (tp.pz + fov > 20) {
+                const tsc = fov / (fov + tp.pz + 240);
+                const tx = cx + tp.px * tsc, ty = cy + tp.py * tsc;
+                ctx.beginPath();
+                ctx.moveTo(sx, sy);
+                for (let st = 1; st <= 10; st++) {
+                  const f = st / 10;
+                  ctx.lineTo(sx + (tx - sx) * f + (Math.random() - 0.5) * 15, sy + (ty - sy) * f + (Math.random() - 0.5) * 15);
+                }
+                ctx.strokeStyle = '#fef08a';
+                ctx.globalAlpha = 0.25;
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+              }
+            }
+          }
+        }
+
+        // Padrão de interferência no chão
+        if (zoom < 0.4 && cloud.superposed) {
+          for (let ring = 0; ring < 4; ring++) {
+            ctx.beginPath();
+            ctx.arc(sx, sy + 5, (20 + ring * 15) * s * cloud.coherence, 0, Math.PI * 2);
+            ctx.strokeStyle = sector.color;
+            ctx.globalAlpha = 0.03 * cloud.coherence * (1 - ring * 0.2);
+            ctx.lineWidth = 0.4;
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Entrelaçamentos visuais
+      for (const [id1, id2, strength] of QuantumEngine.entanglements) {
+        const q1 = QuantumEngine.qubits[id1], q2 = QuantumEngine.qubits[id2];
+        if (!q1 || !q2 || (q1.collapsed && q2.collapsed)) continue;
+        const s1 = CITY_SECTORS.find(s => s.id === id1);
+        const s2 = CITY_SECTORS.find(s => s.id === id2);
+        if (!s1 || !s2) continue;
+        const p1 = project(s1.x, s1.y, s1.z, cosY, sinY, cosX, sinX, respPulse);
+        const p2 = project(s2.x, s2.y, s2.z, cosY, sinY, cosX, sinX, respPulse);
+        if (p1.pz + fov <= 20 || p2.pz + fov <= 20) continue;
+        const sc1 = fov / (fov + p1.pz + 240), sc2 = fov / (fov + p2.pz + 240);
+        const x1 = cx + p1.px * sc1, y1 = cy + p1.py * sc1;
+        const x2 = cx + p2.px * sc2, y2 = cy + p2.py * sc2;
+
+        // Onda entrelaçada
+        ctx.beginPath();
+        for (let i = 0; i <= 20; i++) {
+          const f = i / 20;
+          const bx = x1 + (x2 - x1) * f, by = y1 + (y2 - y1) * f;
+          const wave = Math.sin(f * Math.PI * 4 + timeClock * 3) * 6 * strength;
+          const d = Math.hypot(x2 - x1, y2 - y1) || 1;
+          const px = -(y2 - y1) / d * wave, py = (x2 - x1) / d * wave;
+          i === 0 ? ctx.moveTo(bx + px, by + py) : ctx.lineTo(bx + px, by + py);
+        }
+        ctx.strokeStyle = q1.collapsed || q2.collapsed ? '#94a3b8' : '#c084fc';
+        ctx.globalAlpha = 0.1 + strength * 0.12;
+        ctx.lineWidth = 0.5 + strength * 0.8;
+        ctx.stroke();
+
+        // Partícula viajante
+        if (strength > 0.6) {
+          const tE = ((timeClock * 0.5 + strength * 2) % 1 + 1) % 1;
+          ctx.beginPath();
+          ctx.arc(x1 + (x2 - x1) * tE, y1 + (y2 - y1) * tE, 1.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#c084fc';
+          ctx.globalAlpha = 0.5;
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+  };
+
+  // ═══════════════════════════════════════════════════════════════
+  // BUTTERFLY EFFECT ENGINE — Teoria do Caos na Cidade
+  // ═══════════════════════════════════════════════════════════════
+  // Lorenz attractor + cascata de perturbações + sensibilidade extrema
+  const ButterflyEngine = {
+    // ─── ATRATOR DE LORENZ (x, y, z) ───
+    lorenz: { x: 0.1, y: 0, z: 0 },
+    LORENZ_SIGMA: 10,
+    LORENZ_RHO: 28,
+    LORENZ_BETA: 8/3,
+    lorenzTrail: [],
+    MAX_TRAIL: 400,
+
+    // ─── PERTURBAÇÕES ───
+    perturbations: [],       // [{ origin, tick, magnitude, cascades: [] }]
+    sensitivityMap: {},       // nodeId → sensibilidade (quão suscetível a mudanças)
+    cascadeParticles: [],     // partículas visuais de cascata
+    MAX_CASCADE: 200,
+
+    // ─── HISTÓRICO DE ESTADO ───
+    stateHistory: [],         // snapshots do estado da cidade
+    HISTORY_LEN: 120,
+    lyapunovExponent: 0,      // expoente de Lyapunov (>0 = caos)
+
+    // ─── SENSIBILIDADE INICIAL ───
+    initSensitivity() {
+      for (const s of CITY_SECTORS) {
+        // Setores com mais conexões são mais sensíveis
+        const connections = CITY_EDGES.filter(e => e.from === s.id || e.to === s.id).length;
+        this.sensitivityMap[s.id] = 0.3 + connections * 0.08;
+        for (const e of s.empresas) {
+          const eConn = CITY_EDGES.filter(ed => ed.from === e.id || ed.to === e.id).length;
+          this.sensitivityMap[e.id] = 0.2 + eConn * 0.1 + (e.workers || []).length * 0.02;
+        }
+      }
+    },
+
+    // ─── CRIAR PERTURBAÇÃO ───
+    perturb(originId, magnitude = 0.1) {
+      const pert = {
+        id: `P${Date.now()}`,
+        origin: originId,
+        tick: this.stateHistory.length,
+        magnitude,
+        cascades: [],
+        active: true,
+        age: 0,
+      };
+      this.perturbations.push(pert);
+
+      // Cascata: propaga pela rede de entrelaçamento quântico
+      const visited = new Set([originId]);
+      const queue = [{ id: originId, strength: magnitude, depth: 0 }];
+
+      while (queue.length > 0) {
+        const current = queue.shift();
+        if (current.depth > 5) continue; // Max 5 níveis de cascata
+
+        // Encontrar vizinhos (entrelaçados + edges)
+        const neighbors = [];
+        const q = QuantumEngine.qubits[current.id];
+        if (q) {
+          for (const ent of q.entangled) {
+            if (!visited.has(ent.id)) neighbors.push({ id: ent.id, str: ent.strength });
+          }
+        }
+        for (const edge of CITY_EDGES) {
+          if (edge.from === current.id && !visited.has(edge.to)) {
+            neighbors.push({ id: edge.to, str: edge.weight });
+          }
+          if (edge.to === current.id && !visited.has(edge.from)) {
+            neighbors.push({ id: edge.from, str: edge.weight });
+          }
+        }
+
+        for (const n of neighbors) {
+          visited.add(n.id);
+          const attenuated = current.str * n.str * 0.7; // Atenuação
+          if (attenuated > 0.01) {
+            pert.cascades.push({
+              nodeId: n.id,
+              strength: attenuated,
+              depth: current.depth + 1,
+              tick: this.stateHistory.length + current.depth * 3,
+            });
+            queue.push({ id: n.id, strength: attenuated, depth: current.depth + 1 });
+
+            // Criar partícula de cascata visual
+            if (this.cascadeParticles.length < this.MAX_CASCADE) {
+              const origin = this.findNodePos(originId);
+              const target = this.findNodePos(n.id);
+              if (origin && target) {
+                this.cascadeParticles.push({
+                  from: origin, to: target,
+                  t: 0, speed: 0.01 + attenuated * 0.02,
+                  strength: attenuated, depth: current.depth + 1,
+                  color: attenuated > 0.3 ? '#fef08a' : (attenuated > 0.1 ? '#fb923c' : '#94a3b8'),
+                });
+              }
+            }
+          }
+        }
+      }
+    },
+
+    findNodePos(id) {
+      const s = CITY_SECTORS.find(s => s.id === id);
+      if (s) return { x: s.x, y: s.y, z: s.z };
+      for (const sec of CITY_SECTORS) {
+        const e = sec.empresas.find(e => e.id === id);
+        if (e) return { x: e.x, y: e.y, z: e.z };
+      }
+      return null;
+    },
+
+    // ─── EVOLUÇÃO TEMPORAL ───
+    evolve() {
+      // Lorenz attractor
+      const dt = 0.005;
+      const { x, y, z } = this.lorenz;
+      this.lorenz.x += this.LORENZ_SIGMA * (y - x) * dt;
+      this.lorenz.y += (x * (this.LORENZ_RHO - z) - y) * dt;
+      this.lorenz.z += (x * y - this.LORENZ_BETA * z) * dt;
+      this.lorenzTrail.push({ x: this.lorenz.x, y: this.lorenz.y, z: this.lorenz.z });
+      if (this.lorenzTrail.length > this.MAX_TRAIL) this.lorenzTrail.shift();
+
+      // Snapshot do estado
+      const snapshot = {};
+      for (const s of CITY_SECTORS) {
+        snapshot[s.id] = {
+          receita: s.metrics.receita,
+          saude: s.metrics.saude,
+          func: s.metrics.funcionarios,
+        };
+      }
+      this.stateHistory.push(snapshot);
+      if (this.stateHistory.length > this.HISTORY_LEN) this.stateHistory.shift();
+
+      // Calcular expoente de Lyapunov
+      if (this.stateHistory.length > 10) {
+        const prev = this.stateHistory[this.stateHistory.length - 10];
+        const curr = this.stateHistory[this.stateHistory.length - 1];
+        let diverge = 0;
+        for (const sid of Object.keys(curr)) {
+          if (prev[sid]) {
+            diverge += Math.abs(curr[sid].receita - prev[sid].receita) / Math.max(1, prev[sid].receita);
+          }
+        }
+        this.lyapunovExponent = diverge / Math.max(1, Object.keys(curr).length) * 0.1;
+      }
+
+      // Atualizar perturbações
+      this.perturbations = this.perturbations.filter(p => {
+        p.age++;
+        if (p.age > 100) p.active = false;
+        return p.active;
+      });
+
+      // Evoluir partículas de cascata
+      this.cascadeParticles = this.cascadeParticles.filter(cp => {
+        cp.t += cp.speed;
+        return cp.t < 1.0;
+      });
+
+      // Perturbação quântica aleatória (borboleta natural)
+      if (Math.random() < 0.02) {
+        const randomSector = CITY_SECTORS[Math.floor(Math.random() * CITY_SECTORS.length)];
+        if (randomSector) {
+          this.perturb(randomSector.id, 0.05 + Math.random() * 0.1);
+        }
+      }
+    },
+
+    // ─── VISUALIZAÇÃO ───
+    render(ctx, cosY, sinY, cosX, sinX, respPulse, timeClock, fov, cx, cy, zoom) {
+      ctx.save();
+
+      // ─── ATRATOR DE LORENZ (canto inferior esquerdo) ───
+      const lorenzSize = Math.min(100, W * 0.12);
+      const lorenzX = 16;
+      const lorenzY = H - 180;
+      const lorenzScale = lorenzSize / 30;
+
+      // Fundo
+      ctx.fillStyle = 'rgba(5,9,20,0.7)';
+      ctx.globalAlpha = 0.8;
+      ctx.fillRect(lorenzX - 5, lorenzY - 5, lorenzSize + 10, lorenzSize + 10);
+      ctx.strokeStyle = 'rgba(168,85,247,0.2)';
+      ctx.globalAlpha = 0.5;
+      ctx.strokeRect(lorenzX - 5, lorenzY - 5, lorenzSize + 10, lorenzSize + 10);
+
+      // Trilha do atrator
+      ctx.beginPath();
+      for (let i = 0; i < this.lorenzTrail.length; i++) {
+        const pt = this.lorenzTrail[i];
+        const px = lorenzX + lorenzSize / 2 + pt.x * lorenzScale * 0.8;
+        const py = lorenzY + lorenzSize / 2 - pt.z * lorenzScale * 0.5 + 20;
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.strokeStyle = '#c084fc';
+      ctx.globalAlpha = 0.4;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+
+      // Ponto atual
+      if (this.lorenzTrail.length > 0) {
+        const last = this.lorenzTrail[this.lorenzTrail.length - 1];
+        const lx = lorenzX + lorenzSize / 2 + last.x * lorenzScale * 0.8;
+        const ly = lorenzY + lorenzSize / 2 - last.z * lorenzScale * 0.5 + 20;
+        ctx.beginPath();
+        ctx.arc(lx, ly, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#fef08a';
+        ctx.globalAlpha = 0.9;
+        ctx.fill();
+      }
+
+      // Label
+      ctx.font = "8px 'Courier New', monospace";
+      ctx.fillStyle = '#94a3b8';
+      ctx.textAlign = 'left';
+      ctx.globalAlpha = 0.6;
+      ctx.fillText('ATTRATOR DE LORENZ', lorenzX, lorenzY - 10);
+      ctx.fillText(`λ: ${this.lyapunovExponent.toFixed(4)}`, lorenzX, lorenzY + lorenzSize + 12);
+      ctx.fillText(this.lyapunovExponent > 0.01 ? '⚡ CAÓTICO' : '🧘 ESTÁVEL', lorenzX + 60, lorenzY + lorenzSize + 12);
+
+      // ─── PARTÍCULAS DE CASCATA ───
+      for (const cp of this.cascadeParticles) {
+        const pFrom = project(cp.from.x, cp.from.y, cp.from.z, cosY, sinY, cosX, sinX, respPulse);
+        const pTo = project(cp.to.x, cp.to.y, cp.to.z, cosY, sinY, cosX, sinX, respPulse);
+        if (pFrom.pz + fov <= 20 || pTo.pz + fov <= 20) continue;
+        const s1 = fov / (fov + pFrom.pz + 240), s2 = fov / (fov + pTo.pz + 240);
+        const x1 = cx + pFrom.px * s1, y1 = cy + pFrom.py * s1;
+        const x2 = cx + pTo.px * s2, y2 = cy + pTo.py * s2;
+
+        const px = x1 + (x2 - x1) * cp.t;
+        const py = y1 + (y2 - y1) * cp.t;
+
+        // Flash de impacto
+        const impactR = 4 + cp.strength * 20;
+        const grd = ctx.createRadialGradient(px, py, 0, px, py, impactR);
+        grd.addColorStop(0, cp.color);
+        grd.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grd;
+        ctx.globalAlpha = (1 - cp.t) * 0.3;
+        ctx.fillRect(px - impactR, py - impactR, impactR * 2, impactR * 2);
+
+        // Partícula
+        ctx.beginPath();
+        ctx.arc(px, py, 1.5 + cp.strength * 3, 0, Math.PI * 2);
+        ctx.fillStyle = cp.color;
+        ctx.globalAlpha = (1 - cp.t) * 0.7;
+        ctx.fill();
+
+        // Trilha
+        const trailLen = 5;
+        for (let tr = 1; tr <= trailLen; tr++) {
+          const tt = cp.t - tr * 0.02;
+          if (tt < 0) continue;
+          const tx = x1 + (x2 - x1) * tt;
+          const ty = y1 + (y2 - y1) * tt;
+          ctx.beginPath();
+          ctx.arc(tx, ty, 0.8, 0, Math.PI * 2);
+          ctx.fillStyle = cp.color;
+          ctx.globalAlpha = (1 - cp.t) * 0.15 * (1 - tr / trailLen);
+          ctx.fill();
+        }
+      }
+
+      // ─── MAPA DE SENSIBILIDADE ───
+      if (zoom < 0.5) {
+        for (const s of CITY_SECTORS) {
+          const sens = this.sensitivityMap[s.id] || 0.3;
+          const p = project(s.x, s.y, s.z, cosY, sinY, cosX, sinX, respPulse);
+          if (p.pz + fov <= 20) continue;
+          const sc = fov / (fov + p.pz + 240);
+          const sx = cx + p.px * sc, sy = cy + p.py * sc;
+
+          // Anel de sensibilidade (vermelho = mais sensível)
+          const sensR = (s.radius || 50) * sc * 0.4 * (1 + sens);
+          ctx.beginPath();
+          ctx.arc(sx, sy, sensR, 0, Math.PI * 2);
+          ctx.strokeStyle = sens > 0.6 ? '#ef4444' : (sens > 0.4 ? '#fbbf24' : '#10b981');
+          ctx.globalAlpha = 0.08 + sens * 0.12;
+          ctx.lineWidth = 0.5 + sens * 1.5;
+          ctx.stroke();
+        }
+      }
+
+      // ─── INDICADOR DE CAOS ───
+      const chaosLevel = Math.min(1, this.lyapunovExponent * 10);
+      if (chaosLevel > 0.3) {
+        const chaosR = 40 + chaosLevel * 60;
+        const chaosGrd = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, chaosR);
+        chaosGrd.addColorStop(0, 'rgba(239,68,68,0)');
+        chaosGrd.addColorStop(0.7, 'rgba(239,68,68,0)');
+        chaosGrd.addColorStop(1, `rgba(239,68,68,${chaosLevel * 0.05})`);
+        ctx.fillStyle = chaosGrd;
+        ctx.globalAlpha = 1;
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      ctx.restore();
+    }
+  };
+  ButterflyEngine.initSensitivity();
+
+  // CITY SIM — Engine de Simulação em Tempo Real (estilo pygame)
+  // ═══════════════════════════════════════════════════════════════
+  // equivalente puro JS ao pygame: game loop, sprites, eventos, partículas
+  const CitySim = {
+    tick: 0,
+    speed: 1,
+    month: 0,       // meses desde início
+    year: 2026,
+    money: 500000,   // R$ 500k iniciais
+    population: 0,
+    happiness: 0.75,
+    demandRes: 0.7,
+    demandCom: 0.6,
+    demandInd: 0.5,
+    energy: 1.0,
+    trafficLoad: 0.3,
+    events: [],
+
+    // ─── ECONOMIA ───
+    TAX_RATE: 0.12,
+    MAINTENANCE_PER_BUILDING: 500,
+    SALARY_MULTIPLIER: 1.0,
+
+    // ─── POPULAÇÃO ───
+    GROWTH_BASE: 0.02,
+    CAPACITY_PER_RESIDENCIA: 25,
+
+    // ─── TICK PRINCIPAL ───
+    simTick() {
+      if (this.speed === 0) return;
+      for (let i = 0; i < this.speed; i++) {
+        this.tick++;
+        this.month = Math.floor(this.tick / 30) % 12;
+        this.year = 2026 + Math.floor(this.tick / 360);
+
+        this.simEconomy();
+        this.simPopulation();
+        this.simHappiness();
+        this.simDemand();
+        this.simTraffic();
+        this.simEnergy();
+        this.simEvents();
+        this.simGrowth();
+      }
+      this.applyEffects();
+    },
+
+    // ─── SIMULAÇÃO: Economia ───
+    simEconomy() {
+      let receita = 0;
+      let custo = 0;
+      for (const s of CITY_SECTORS) {
+        receita += s.metrics.receita * 0.01;
+        custo += s.metrics.custo * 0.008;
+        for (const e of s.empresas) {
+          // Impostos por empresa
+          receita += e.metrics.receita * this.TAX_RATE * 0.001;
+          // Custo operacional
+          custo += (e.workers || []).length * 200 * this.SALARY_MULTIPLIER * 0.001;
+        }
+      }
+      // Manutenção de infraestrutura
+      custo += BuildingSystem.buildings.length * this.MAINTENANCE_PER_BUILDING * 0.001;
+      custo += CITY_ROUTES.length * 100 * 0.001;
+
+      this.money += (receita - custo);
+      this.money = Math.max(0, this.money);
+    },
+
+    // ─── SIMULAÇÃO: População ───
+    simPopulation() {
+      let maxCapacity = 0;
+      let currentOccupancy = 0;
+      for (const b of BuildingSystem.buildings) {
+        if (b.type === 'residencia') {
+          maxCapacity += b.capacity;
+          currentOccupancy += b.occupancy;
+        }
+      }
+      // Se há demanda e capacidade, população cresce
+      if (this.demandRes > 0.5 && currentOccupancy < maxCapacity) {
+        const growth = Math.floor(this.GROWTH_BASE * maxCapacity * this.demandRes * this.happiness);
+        this.population += growth;
+        // Ocupar prédios
+        for (const b of BuildingSystem.buildings) {
+          if (b.type === 'residencia' && b.occupancy < b.capacity) {
+            const add = Math.min(growth, b.capacity - b.occupancy);
+            b.occupancy += add;
+            this.population -= add;
+            if (this.population < 0) this.population = 0;
+          }
+        }
+      }
+      // Decadência自然
+      if (this.happiness < 0.4) {
+        const decay = Math.floor(this.population * 0.005);
+        this.population -= decay;
+        for (const b of BuildingSystem.buildings) {
+          if (b.type === 'residencia' && b.occupancy > 0) {
+            b.occupancy -= Math.min(decay, b.occupancy);
+          }
+        }
+      }
+      this.population = Math.max(0, this.population);
+    },
+
+    // ─── SIMULAÇÃO: Felicidade ───
+    simHappiness() {
+      let factors = 0.5;
+      // Energia disponível
+      factors += this.energy * 0.15;
+      // Trânsito fluido
+      factors += (1 - this.trafficLoad) * 0.1;
+      // Setores saudáveis
+      let healthy = 0;
+      for (const s of CITY_SECTORS) {
+        if (s.metrics.saude > 0.6) healthy++;
+      }
+      factors += (healthy / Math.max(1, CITY_SECTORS.length)) * 0.15;
+      // Orçamento
+      if (this.money > 100000) factors += 0.1;
+      if (this.money < 10000) factors -= 0.15;
+
+      this.happiness = Math.max(0, Math.min(1, factors));
+    },
+
+    // ─── SIMULAÇÃO: Demanda ───
+    simDemand() {
+      const ratio = this.population / Math.max(1, this.getTotalCapacity());
+      this.demandRes = Math.max(0.1, Math.min(1, 0.8 - ratio + this.happiness * 0.3));
+      this.demandCom = Math.max(0.1, Math.min(1, 0.6 + (this.population / 1000) * 0.2 - this.demandRes * 0.3));
+      this.demandInd = Math.max(0.1, Math.min(1, 0.5 + this.demandCom * 0.4 - this.happiness * 0.2));
+    },
+
+    // ─── SIMULAÇÃO: Trânsito ───
+    simTraffic() {
+      const vehicleCount = VehicleSystem.vehicles.length;
+      const roadKm = CITY_ROUTES.reduce((acc, r) => {
+        const dx = r.to.x - r.from.x;
+        const dy = r.to.y - r.from.y;
+        const dz = r.to.z - r.from.z;
+        return acc + Math.sqrt(dx*dx + dy*dy + dz*dz) * CityScale.UNIT_METERS / 1000;
+      }, 0);
+      this.trafficLoad = Math.min(1, (this.population * 0.001 + vehicleCount * 0.005) / Math.max(1, roadKm));
+    },
+
+    // ─── SIMULAÇÃO: Energia ───
+    simEnergy() {
+      let supply = 0;
+      let demand = 0;
+      for (const s of CITY_SECTORS) {
+        if (s.name === 'Energia') supply += s.metrics.receita * 0.01;
+        demand += s.metrics.funcionarios * 0.01;
+      }
+      for (const b of BuildingSystem.buildings) {
+        demand += b.energy * 0.5;
+      }
+      this.energy = Math.max(0.1, Math.min(1, supply / Math.max(1, demand)));
+    },
+
+    // ─── SIMULAÇÃO: Eventos ───
+    simEvents() {
+      // A cada 60 ticks, pode发生 um evento
+      if (this.tick % 60 === 0) {
+        const roll = Math.random();
+        if (roll < 0.15) {
+          this.events.push({ type: 'festival', msg: 'Festival cultural no setor de Cultura!', effect: 'happy+', duration: 30 });
+        } else if (roll < 0.25) {
+          this.events.push({ type: 'prosperity', msg: 'Boom econômico! Receita aumenta.', effect: 'money+', duration: 20 });
+        } else if (roll < 0.32) {
+          this.events.push({ type: 'blackout', msg: 'Apagão! Energia cai temporariamente.', effect: 'energy-', duration: 15 });
+        } else if (roll < 0.38) {
+          this.events.push({ type: 'strike', msg: 'Greve de workers! Produtividade cai.', effect: 'prod-', duration: 25 });
+        } else if (roll < 0.42) {
+          this.events.push({ type: 'innovation', msg: 'Inovação tecnológica! Nova empresa surge.', effect: 'spawn', duration: 1 });
+        }
+      }
+      // Processar eventos ativos
+      this.events = this.events.filter(e => {
+        e.duration--;
+        if (e.duration <= 0) {
+          this.applyEventEffect(e, false);
+          return false;
+        }
+        return true;
+      });
+    },
+
+    applyEventEffect(e, active) {
+      const mult = active ? 1 : -1;
+      switch(e.effect) {
+        case 'happy+': this.happiness = Math.min(1, this.happiness + 0.1 * mult); break;
+        case 'money+': this.money += 50000 * mult; break;
+        case 'energy-': this.energy = Math.max(0.1, this.energy - 0.3 * mult); break;
+        case 'prod-':
+          for (const s of CITY_SECTORS) for (const emp of s.empresas) {
+            for (const w of (emp.workers || [])) w.produtividade = Math.max(0.1, w.produtividade - 0.1 * mult);
+          }
+          break;
+        case 'spawn':
+          if (active) TerritoryManager.spawnFromFission(0.7, 2.5);
+          break;
+      }
+    },
+
+    // ─── SIMULAÇÃO: Crescimento ───
+    simGrowth() {
+      // Crescimento orgânico da cidade
+      if (this.tick % 120 === 0 && this.money > 50000 && this.happiness > 0.5) {
+        // Adicionar workers a empresas existentes
+        for (const s of CITY_SECTORS) {
+          for (const e of s.empresas) {
+            if ((e.workers || []).length < 8 && Math.random() < this.happiness * 0.3) {
+              const tmpl = TerritoryManager.WORKER_NAMES[Math.floor(Math.random() * TerritoryManager.WORKER_NAMES.length)];
+              const cargos = TerritoryManager.CARGOS_BY_FIELD[s.name] || ['Analista', 'Técnico'];
+              e.workers.push({
+                id: `W${e.id}${String(e.workers.length + 1).padStart(2, '0')}`,
+                nome: tmpl,
+                cargo: cargos[Math.floor(Math.random() * cargos.length)],
+                salario: 3000 + Math.floor(Math.random() * 8000),
+                produtividade: 0.5 + Math.random() * 0.4,
+                skills: ['Novato', 'Aprendizado'],
+                vinculo: (e.processos[0] || {}).name || 'Geral',
+                horas_semanais: 40,
+              });
+              e.metrics.funcionarios = (e.metrics.funcionarios || 0) + 1;
+              BuildingSystem.generateAll();
+              WorkerActivitySystem.generateActivities();
+            }
+          }
+        }
+      }
+      // Fissão de novos territórios
+      if (this.tick % 180 === 0) {
+        TerritoryManager.spawnFromFission(this.happiness, 2.0 + this.money / 200000);
+      }
+    },
+
+    // ─── APLICAR EFEITOS VISUAIS ───
+    applyEffects() {
+      // Atualizar brilho dos prédios baseado na economia
+      for (const b of BuildingSystem.buildings) {
+        b.energy = Math.max(0.2, Math.min(1, this.energy * (0.7 + this.happiness * 0.3)));
+      }
+      // Atualizar velocidade dos veículos baseado no trânsito
+      for (const v of VehicleSystem.vehicles) {
+        v.speed *= (1 - this.trafficLoad * 0.3);
+      }
+      // Atualizar produtividade dos workers baseado na felicidade
+      if (this.tick % 30 === 0) {
+        for (const s of CITY_SECTORS) {
+          for (const e of s.empresas) {
+            for (const w of (e.workers || [])) {
+              w.produtividade = Math.max(0.2, Math.min(1, w.produtividade + (this.happiness - 0.5) * 0.02));
+            }
+          }
+        }
+      }
+    },
+
+    getTotalCapacity() {
+      let cap = 0;
+      for (const b of BuildingSystem.buildings) {
+        if (b.type === 'residencia') cap += b.capacity;
+      }
+      return cap;
+    },
+
+    setSpeed(s) { this.speed = s; },
+  };
+
+  // ─── SISTEMA DE FLUXO DE ENERGIA / TRANSMISSÃO DE BITS ───
+  const flowParticles = [];
+  const MAX_FLOW = 600;
+  const EDGE_COLORS = { funding: '#fbbf24', dados: '#06b6d4', recursos: '#10b981', dependencia: '#ef4444' };
+
+  function initFlowParticles() {
+    flowParticles.length = 0;
+    for (const edge of CITY_EDGES) {
+      // Mais partículas = mais energia no canal
+      const energyClass = edge.weight > 0.7 ? 4 : (edge.weight > 0.4 ? 3 : (edge.weight > 0.2 ? 2 : 1));
+      for (let i = 0; i < energyClass && flowParticles.length < MAX_FLOW; i++) {
+        flowParticles.push({
+          edge,
+          t: Math.random(),
+          speed: (0.002 + edge.weight * 0.008) * (0.8 + Math.random() * 0.4),
+          brightness: 0.6 + Math.random() * 0.4,
+          size: 1.5 + edge.weight * 2.5 + Math.random() * 1.5,
+          trail: [],
+          maxTrail: 6 + Math.floor(edge.weight * 8),
+          phase: Math.random() * Math.PI * 2
+        });
+      }
+    }
+  }
+  initFlowParticles();
+
+  function resolveNode(id) {
+    for (const s of CITY_SECTORS) {
+      if (s.id === id) return s;
+      for (const e of s.empresas) {
+        if (e.id === id) return e;
+      }
+    }
+    return null;
+  }
+
+  // ─── ENDEREÇO DE REDE ÚNICO POR EMPRESA ───
+  function getNetAddr(empId) {
+    // Gera endereço tipo "10.S01.E01.00" a partir do ID
+    const match = empId.match(/E(\d{2})(\d{2})/);
+    if (!match) return '10.0.0.0';
+    return `10.${parseInt(match[1])}.${parseInt(match[2])}.${Math.floor(Math.random()*254)+1}`;
+  }
+
+  // ─── ASSINATURA DE REDE (hash único) ───
+  function getNetSignature(empId) {
+    let h = 0;
+    for (let i = 0; i < empId.length; i++) { h = ((h << 5) - h + empId.charCodeAt(i)) | 0; }
+    return '0x' + Math.abs(h).toString(16).toUpperCase().padStart(8, '0');
+  }
+
+  // ─── BALANÇO ENERGÉTICO: o que a empresa extrai/envia da cidade ───
+  function getMicroverse(emp, sector) {
+    const recv = emp.metrics.receita || 200;
+    const sent = emp.metrics.custo || 150;
+    const ratio = recv / Math.max(1, sent);
+    // Extrai = o que recebe da cidade (insumos, dados, clientes)
+    // Emite = o que devolve (produtos, serviços, impostos)
+    return {
+      address: getNetAddr(emp.id),
+      signature: getNetSignature(emp.id),
+      extracted: { dados: Math.floor(recv * 0.3), energia: Math.floor(recv * 0.15), clientes: Math.floor(recv * 0.08) },
+      emitted: { produtos: Math.floor(sent * 0.4), servicos: Math.floor(sent * 0.25), impostos: Math.floor(sent * 0.12) },
+      efficiency: Math.min(2.0, ratio),
+      bandwidth: emp.metrics.funcionarios * 8 + emp.metrics.resiliencia * 200,
+      ping: Math.floor(10 + (1 - emp.metrics.resiliencia) * 90)
+    };
+  }
+
+  // ─── REDE DE COMUNICAÇÃO: quem fala com quem ───
+  function getComms(empId) {
+    const comms = [];
+    for (const edge of CITY_EDGES) {
+      if (edge.from === empId) {
+        const target = resolveNode(edge.to);
+        if (target) comms.push({ target: target.name || target.id, type: edge.type, weight: edge.weight, direction: 'out' });
+      }
+      if (edge.to === empId) {
+        const source = resolveNode(edge.from);
+        if (source) comms.push({ target: source.name || source.id, type: edge.type, weight: edge.weight, direction: 'in' });
+      }
+    }
+    return comms;
+  }
+
+  // ─── PROJECTION ───
+  function project(x, y, z, cosY, sinY, cosX, sinX, respPulse) {
+    let rx = x * cosY + z * sinY;
+    let rz = -x * sinY + z * cosY;
+    let ry = (y + respPulse) * cosX - rz * sinX;
+    let rzF = (y + respPulse) * sinX + rz * cosX;
+    return { px: rx, py: ry, pz: rzF };
+  }
+
+  let timeClock = 0;
+  let activeHover = null;
+
+  // ─── RENDER ───
+  function animateCity() {
+    ctx.fillStyle = "rgba(1, 2, 6, 0.18)";
+    ctx.fillRect(0, 0, W, H);
+
+    timeClock += 0.022;
+    CitySim.simTick();
+    QuantumEngine.evolve();
+    ButterflyEngine.evolve();
+    rotX += (targetRotX - rotX) * 0.06;
+    rotY += (targetRotY - rotY) * 0.06;
+    currentZoom += (targetZoom - currentZoom) * 0.08;
+
+    const fov = 520, cx = W / 2, cy = H / 2;
+    const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+    const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+    const respPulse = Math.sin(timeClock * 1.5) * 4;
+    const zoom = currentZoom;
+
+    zoomIndicator.textContent = 'ZOOM: ' + getZoomLabel(zoom) + ' (' + zoom.toFixed(2) + ')';
+
+    activeHover = null;
+
+    const showSectors = true;
+    const showEmpresas = zoom <= 0.55;
+    const showProcessos = zoom <= 0.25;
+    const showWorkers = zoom <= 0.15;
+    const showLabelsSector = true;
+    const showLabelsEmpresa = zoom <= 0.4;
+    const showEdges = zoom <= 0.9;
+
+    // ─── EDGES ───
+    if (showEdges) {
+      ctx.save();
+      for (const edge of CITY_EDGES) {
+        const nFrom = resolveNode(edge.from);
+        const nTo = resolveNode(edge.to);
+        if (!nFrom || !nTo) continue;
+
+        const pFrom = project(nFrom.x, nFrom.y, nFrom.z, cosY, sinY, cosX, sinX, respPulse);
+        const pTo = project(nTo.x, nTo.y, nTo.z, cosY, sinY, cosX, sinX, respPulse);
+
+        if (pFrom.pz + fov <= 20 || pTo.pz + fov <= 20) continue;
+
+        const s1 = fov / (fov + pFrom.pz + 240);
+        const s2 = fov / (fov + pTo.pz + 240);
+        const x1 = cx + pFrom.px * s1, y1 = cy + pFrom.py * s1;
+        const x2 = cx + pTo.px * s2, y2 = cy + pTo.py * s2;
+
+        const colors = { funding: '#fbbf24', dados: '#06b6d4', recursos: '#10b981', dependencia: '#ef4444' };
+        const col = colors[edge.type] || '#64748b';
+
+        const mx = (x1 + x2) / 2 + (Math.sin(timeClock + edge.weight * 10) * 15);
+        const my = (y1 + y2) / 2 + (Math.cos(timeClock + edge.weight * 10) * 15);
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.quadraticCurveTo(mx, my, x2, y2);
+        ctx.strokeStyle = col;
+        ctx.globalAlpha = 0.06 + edge.weight * 0.1;
+        ctx.lineWidth = Math.max(0.5, edge.weight * 2.5);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // ─── FLOW PARTICLES ───
+    if (showEdges) {
+      ctx.save();
+      for (const fp of flowParticles) {
+        fp.t += fp.speed;
+        if (fp.t >= 1.0) fp.t -= 1.0;
+
+        const nFrom = resolveNode(fp.edge.from);
+        const nTo = resolveNode(fp.edge.to);
+        if (!nFrom || !nTo) continue;
+
+        const pFrom = project(nFrom.x, nFrom.y, nFrom.z, cosY, sinY, cosX, sinX, respPulse);
+        const pTo = project(nTo.x, nTo.y, nTo.z, cosY, sinY, cosX, sinX, respPulse);
+        if (pFrom.pz + fov <= 20 || pTo.pz + fov <= 20) continue;
+
+        const s1 = fov / (fov + pFrom.pz + 240);
+        const s2 = fov / (fov + pTo.pz + 240);
+        const x1 = cx + pFrom.px * s1, y1 = cy + pFrom.py * s1;
+        const x2 = cx + pTo.px * s2, y2 = cy + pTo.py * s2;
+
+        const t = fp.t;
+        const mx = (x1 + x2) / 2 + (Math.sin(timeClock + fp.edge.weight * 10) * 15);
+        const my = (y1 + y2) / 2 + (Math.cos(timeClock + fp.edge.weight * 10) * 15);
+
+        const fpx = (1-t)*(1-t)*x1 + 2*(1-t)*t*mx + t*t*x2;
+        const fpy = (1-t)*(1-t)*y1 + 2*(1-t)*t*my + t*t*y2;
+
+        const colors = { funding: '#fbbf24', dados: '#06b6d4', recursos: '#10b981', dependencia: '#ef4444' };
+        const col = colors[fp.edge.type] || '#64748b';
+
+        ctx.beginPath();
+        ctx.arc(fpx, fpy, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = col;
+        ctx.globalAlpha = 0.7 + Math.sin(timeClock * 4 + fp.t * 10) * 0.3;
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // ─── INFRAESTRUTURA DE TRANSPORTE ───
+    if (typeof CITY_ROUTES !== 'undefined') {
+      ctx.save();
+      const ROUTE_WIDTH = { rodovia: 3.5, estrada: 2.0, avenida: 1.5, rua: 0.8, ciclovia: 0.4 };
+      const ROUTE_DASH = { rodovia: [], estrada: [12, 4], avenida: [], rua: [4, 4], ciclovia: [2, 3] };
+      const showInfraLevel = zoom <= 0.7 ? 'all' : (zoom <= 0.9 ? 'major' : 'none');
+      const ROUTE_TYPES_BY_LEVEL = {
+        all: ['rodovia', 'estrada', 'avenida', 'rua', 'ciclovia'],
+        major: ['rodovia', 'estrada', 'avenida'],
+        none: [],
+      };
+      const allowedTypes = new Set(ROUTE_TYPES_BY_LEVEL[showInfraLevel] || []);
+
+      for (const route of CITY_ROUTES) {
+        if (!allowedTypes.has(route.type)) continue;
+        const pFrom = project(route.from.x, route.from.y, route.from.z, cosY, sinY, cosX, sinX, respPulse);
+        const pTo = project(route.to.x, route.to.y, route.to.z, cosY, sinY, cosX, sinX, respPulse);
+        if (pFrom.pz + fov <= 20 || pTo.pz + fov <= 20) continue;
+        const s1 = fov / (fov + pFrom.pz + 240);
+        const s2 = fov / (fov + pTo.pz + 240);
+        const x1 = cx + pFrom.px * s1, y1 = cy + pFrom.py * s1;
+        const x2 = cx + pTo.px * s2, y2 = cy + pTo.py * s2;
+
+        const pMid = project(route.mid.x, route.mid.y, route.mid.z, cosY, sinY, cosX, sinX, respPulse);
+        const sm = fov / (fov + pMid.pz + 240);
+        const mx = cx + pMid.px * sm + Math.sin(timeClock + route.width) * 8;
+        const my = cy + pMid.py * sm + Math.cos(timeClock + route.width) * 8;
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.quadraticCurveTo(mx, my, x2, y2);
+        ctx.strokeStyle = route.color;
+        const baseW = (ROUTE_WIDTH[route.type] || 1) * (0.5 + scale * 0.5);
+        ctx.lineWidth = Math.max(0.3, baseW * (zoom < 0.3 ? 1.5 : 1));
+        ctx.globalAlpha = route.type === 'ciclovia' ? 0.12 : (route.type === 'rua' ? 0.15 : 0.25);
+        const dash = ROUTE_DASH[route.type];
+        if (dash && dash.length) ctx.setLineDash(dash);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Glow nas rodovias
+        if (route.type === 'rodovia' && zoom < 0.5) {
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.quadraticCurveTo(mx, my, x2, y2);
+          ctx.strokeStyle = route.color;
+          ctx.lineWidth = baseW * 3;
+          ctx.globalAlpha = 0.04 + Math.sin(timeClock * 2 + route.speed * 0.1) * 0.02;
+          ctx.stroke();
+        }
+
+        // Trânsito animado nas rodovias/estradas
+        if ((route.type === 'rodovia' || route.type === 'estrada') && zoom < 0.6) {
+          const tPos = ((timeClock * (route.speed / 120) * 0.5) % 1 + 1) % 1;
+          const tx = (1-tPos)*(1-tPos)*x1 + 2*(1-tPos)*tPos*mx + tPos*tPos*x2;
+          const ty = (1-tPos)*(1-tPos)*y1 + 2*(1-tPos)*tPos*my + tPos*tPos*y2;
+          ctx.beginPath();
+          ctx.arc(tx, ty, Math.max(1, 1.5 * s1), 0, Math.PI * 2);
+          ctx.fillStyle = route.type === 'rodovia' ? '#fbbf24' : '#94a3b8';
+          ctx.globalAlpha = 0.6;
+          ctx.fill();
+        }
+      }
+
+      // Rotas Aéreas
+      if (typeof CITY_AIR_ROUTES !== 'undefined') {
+        for (const ar of CITY_AIR_ROUTES) {
+          const pFrom = project(ar.from_pos.x, ar.from_pos.y, ar.from_pos.z, cosY, sinY, cosX, sinX, respPulse);
+          const pTo = project(ar.to_pos.x, ar.to_pos.y, ar.to_pos.z, cosY, sinY, cosX, sinX, respPulse);
+          if (pFrom.pz + fov <= 20 || pTo.pz + fov <= 20) continue;
+          const s1 = fov / (fov + pFrom.pz + 240);
+          const s2 = fov / (fov + pTo.pz + 240);
+          const x1 = cx + pFrom.px * s1, y1 = cy + pFrom.py * s1;
+          const x2 = cx + pTo.px * s2, y2 = cy + pTo.py * s2;
+
+          const pMid = project(ar.mid.x, ar.mid.y, ar.mid.z, cosY, sinY, cosX, sinX, respPulse);
+          const sm = fov / (fov + pMid.pz + 240);
+          const mx = cx + pMid.px * sm;
+          const my = cy + pMid.py * sm - 30;
+
+          // Arco aéreo
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.quadraticCurveTo(mx, my, x2, y2);
+          ctx.strokeStyle = ar.color;
+          ctx.lineWidth = 0.8;
+          ctx.globalAlpha = 0.2;
+          ctx.setLineDash([6, 3]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Aeronave
+          const tAir = ((timeClock * 0.3 + ar.freq * 0.1) % 1 + 1) % 1;
+          const ax = (1-tAir)*(1-tAir)*x1 + 2*(1-tAir)*tAir*mx + tAir*tAir*x2;
+          const ay = (1-tAir)*(1-tAir)*y1 + 2*(1-tAir)*tAir*my + tAir*tAir*y2;
+          ctx.beginPath();
+          ctx.arc(ax, ay, 2, 0, Math.PI * 2);
+          ctx.fillStyle = ar.aircraft === 'drone' ? '#22d3ee' : (ar.aircraft === 'heli' ? '#f472b6' : '#fbbf24');
+          ctx.globalAlpha = 0.7;
+          ctx.fill();
+          // Trilha da aeronave
+          for (let tr = 1; tr <= 4; tr++) {
+            const tt = tAir - tr * 0.02;
+            if (tt < 0) continue;
+            const trx = (1-tt)*(1-tt)*x1 + 2*(1-tt)*tt*mx + tt*tt*x2;
+            const trr = (1-tt)*(1-tt)*y1 + 2*(1-tt)*tt*my + tt*tt*y2;
+            ctx.beginPath();
+            ctx.arc(trx, trr, 1, 0, Math.PI * 2);
+            ctx.fillStyle = ar.color;
+            ctx.globalAlpha = 0.15 - tr * 0.03;
+            ctx.fill();
+          }
+        }
+      }
+
+      // Transit Stops (pontos de parada)
+      if (typeof CITY_TRANSIT_STOPS !== 'undefined' && zoom < 0.4) {
+        for (const ts of CITY_TRANSIT_STOPS) {
+          const pt = project(ts.x, ts.y, ts.z, cosY, sinY, cosX, sinX, respPulse);
+          if (pt.pz + fov <= 20) continue;
+          const s = fov / (fov + pt.pz + 240);
+          const sx = cx + pt.px * s, sy = cy + pt.py * s;
+          const stopR = ts.type === 'terminal' ? 4 : (ts.type === 'parada' ? 2.5 : 1.5);
+          ctx.beginPath();
+          ctx.arc(sx, sy, stopR * s, 0, Math.PI * 2);
+          ctx.fillStyle = ts.type === 'terminal' ? '#fbbf24' : (ts.type === 'parada' ? '#60a5fa' : '#475569');
+          ctx.globalAlpha = 0.4;
+          ctx.fill();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    // ─── SECTORS ───
+    if (showSectors) {
+      ctx.save();
+      for (const sector of CITY_SECTORS) {
+        const p = project(sector.x, sector.y, sector.z, cosY, sinY, cosX, sinX, respPulse);
+        if (p.pz + fov <= 20) continue;
+
+        const scale = fov / (fov + p.pz + 240);
+        const sx = cx + p.px * scale;
+        const sy = cy + p.py * scale;
+        const sRadius = Math.max(18, Math.min(80, (sector.metrics.receita / 100) * scale * zoom));
+
+        const heartBeat = Math.sin(timeClock * 2 + sector.metrics.saude * 5) * 0.08;
+        const finalR = sRadius * (1 + heartBeat);
+
+        const isHovered = Math.hypot(mouseClientX - sx, mouseClientY - sy) < finalR + 16;
+        if (isHovered && !activeHover) activeHover = { type: 'sector', data: sector, sx, sy };
+
+        // Glow proporcional à receita: receita maior = glow maior e mais intenso
+        const receitaNorm = Math.min(1.0, sector.metrics.receita / 12000);
+        const glowRadius = finalR * (1.2 + receitaNorm * 1.2);
+        const grad = ctx.createRadialGradient(sx, sy, 2, sx, sy, glowRadius);
+        grad.addColorStop(0, sector.color);
+        grad.addColorStop(0.3, sector.color);
+        grad.addColorStop(0.7, sector.color + '44');
+        grad.addColorStop(1, 'rgba(1,2,6,0)');
+
+        ctx.beginPath();
+        ctx.arc(sx, sy, glowRadius, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        const baseAlpha = 0.15 + receitaNorm * 0.45;
+        ctx.globalAlpha = showEmpresas ? baseAlpha * 0.5 : (isHovered ? 0.85 : baseAlpha);
+        ctx.fill();
+
+        // Anel de energia pulsante (mais receita = pulso mais rápido)
+        const pulseSpeed = 2 + receitaNorm * 6;
+        const pulseR = finalR * (1.0 + Math.sin(timeClock * pulseSpeed) * 0.06 * (1 + receitaNorm));
+        ctx.beginPath();
+        ctx.arc(sx, sy, pulseR + 2, 0, Math.PI * 2);
+        ctx.strokeStyle = sector.color;
+        ctx.globalAlpha = 0.15 + receitaNorm * 0.35;
+        ctx.lineWidth = 1 + receitaNorm * 2;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(sx, sy, (isHovered ? 8 : 5) * scale, 0, Math.PI * 2);
+        ctx.fillStyle = isHovered ? '#fef08a' : '#ffffff';
+        ctx.globalAlpha = 0.95;
+        ctx.fill();
+
+        if (showLabelsSector) {
+          ctx.font = `bold ${Math.max(8, Math.floor((isHovered ? 12 : 10) * scale))}px 'Courier New', monospace`;
+          ctx.fillStyle = isHovered ? '#fef08a' : '#ffffff';
+          ctx.textAlign = 'center';
+          ctx.globalAlpha = Math.min(1, Math.max(0.4, scale * 1.2));
+          ctx.fillText(sector.emoji + ' ' + sector.name, sx, sy - finalR - 6);
+
+          ctx.font = `${Math.max(6, Math.floor(7.5 * scale))}px 'Courier New', monospace`;
+          ctx.fillStyle = sector.color;
+          ctx.globalAlpha = Math.min(0.8, scale);
+          ctx.fillText('R$ ' + sector.metrics.receita + 'k', sx, sy + finalR + 10);
+        }
+      }
+      ctx.restore();
+    }
+
+    // ─── EMPRESAS ───
+    if (showEmpresas) {
+      ctx.save();
+      for (const sector of CITY_SECTORS) {
+        for (const emp of sector.empresas) {
+          const p = project(emp.x, emp.y, emp.z, cosY, sinY, cosX, sinX, respPulse);
+          if (p.pz + fov <= 20) continue;
+
+          const scale = fov / (fov + p.pz + 240);
+          const ex = cx + p.px * scale;
+          const ey = cy + p.py * scale;
+          const eRadius = Math.max(6, Math.min(35, (emp.radius || 25) * scale * zoom));
+
+          const isHovered = Math.hypot(mouseClientX - ex, mouseClientY - ey) < eRadius + 12;
+          if (isHovered && !activeHover) activeHover = { type: 'empresa', data: emp, parent: sector, sx: ex, sy: ey };
+
+          // Glow proporcional à receita da empresa
+          const empReceitaNorm = Math.min(1.0, (emp.metrics.receita || 200) / 6000);
+          const empGlowR = eRadius * (1.3 + empReceitaNorm * 1.0);
+          const empGrad = ctx.createRadialGradient(ex, ey, 1, ex, ey, empGlowR);
+          empGrad.addColorStop(0, emp.color || sector.color);
+          empGrad.addColorStop(0.4, emp.color || sector.color);
+          empGrad.addColorStop(0.8, (emp.color || sector.color) + '33');
+          empGrad.addColorStop(1, 'rgba(1,2,6,0)');
+
+          ctx.beginPath();
+          ctx.arc(ex, ey, empGlowR, 0, Math.PI * 2);
+          ctx.fillStyle = empGrad;
+          const empBaseAlpha = 0.2 + empReceitaNorm * 0.5;
+          ctx.globalAlpha = showProcessos ? empBaseAlpha * 0.5 : (isHovered ? 0.8 : empBaseAlpha);
+          ctx.fill();
+
+          // Anel pulsante da empresa
+          const empPulseR = eRadius * (1.0 + Math.sin(timeClock * (3 + empReceitaNorm * 4)) * 0.05);
+          ctx.beginPath();
+          ctx.arc(ex, ey, empPulseR + 1, 0, Math.PI * 2);
+          ctx.strokeStyle = emp.color || sector.color;
+          ctx.globalAlpha = 0.1 + empReceitaNorm * 0.3;
+          ctx.lineWidth = 0.8 + empReceitaNorm * 1.5;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(ex, ey, Math.max(2, 3 * scale), 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.globalAlpha = 0.9;
+          ctx.fill();
+
+          if (showLabelsEmpresa) {
+            ctx.font = `${Math.max(6, Math.floor(8 * scale))}px 'Courier New', monospace`;
+            ctx.fillStyle = emp.color || sector.color;
+            ctx.textAlign = 'center';
+            ctx.globalAlpha = Math.min(0.85, scale * 1.1);
+            ctx.fillText(emp.name, ex, ey - eRadius - 4);
+          }
+        }
+      }
+      ctx.restore();
+    }
+
+    // ─── PROCESSOS ───
+    if (showProcessos) {
+      ctx.save();
+      for (const sector of CITY_SECTORS) {
+        for (const emp of sector.empresas) {
+          for (const proc of emp.processos) {
+            const p = project(proc.x, proc.y, proc.z, cosY, sinY, cosX, sinX, respPulse);
+            if (p.pz + fov <= 20) continue;
+
+            const scale = fov / (fov + p.pz + 240);
+            const px2 = cx + p.px * scale;
+            const py2 = cy + p.py * scale;
+
+            const isHovered = Math.hypot(mouseClientX - px2, mouseClientY - py2) < 10;
+            if (isHovered && !activeHover) activeHover = { type: 'processo', data: proc, parent: emp, grandparent: sector, sx: px2, sy: py2 };
+
+            // Glow baseado no throughput: mais throughput = mais brilho
+            const tNorm = Math.min(1.0, (proc.throughput || 1) / 200);
+            const procRadius = isHovered ? 5 : (2 + tNorm * 3);
+            const pulse = 0.5 + Math.sin(timeClock * (2 + tNorm * 4) + proc.throughput * 0.1) * 0.5;
+
+            // Halo sutil de throughput
+            if (tNorm > 0.3) {
+              ctx.beginPath();
+              ctx.arc(px2, py2, procRadius * 2.5, 0, Math.PI * 2);
+              ctx.fillStyle = emp.color || sector.color;
+              ctx.globalAlpha = tNorm * 0.15;
+              ctx.fill();
+            }
+
+            ctx.beginPath();
+            ctx.arc(px2, py2, procRadius, 0, Math.PI * 2);
+            ctx.fillStyle = isHovered ? '#fef08a' : (emp.color || sector.color);
+            ctx.globalAlpha = 0.25 + tNorm * 0.5 + pulse * 0.2;
+            ctx.fill();
+          }
+        }
+      }
+      ctx.restore();
+    }
+
+    // ─── WORKERS (orbitais ao redor da empresa) ───
+    if (showWorkers) {
+      ctx.save();
+      for (const sector of CITY_SECTORS) {
+        for (const emp of sector.empresas) {
+          if (!emp.workers || emp.workers.length === 0) continue;
+          const p = project(emp.x, emp.y, emp.z, cosY, sinY, cosX, sinX, respPulse);
+          if (p.pz + fov <= 20) continue;
+          const scale = fov / (fov + p.pz + 240);
+          const ex = cx + p.px * scale;
+          const ey = cy + p.py * scale;
+          const orbitR = Math.max(12, Math.min(40, emp.radius * scale * zoom * 1.6));
+
+          for (let wi = 0; wi < emp.workers.length; wi++) {
+            const w = emp.workers[wi];
+            const angle = (wi / emp.workers.length) * Math.PI * 2 + timeClock * 0.3;
+            const wx = ex + Math.cos(angle) * orbitR;
+            const wy = ey + Math.sin(angle) * orbitR * 0.6;
+            const wDot = Math.max(1.5, 2.5 * scale);
+
+            // Cor do worker baseada na produtividade
+            const prod = w.produtividade || 0.5;
+            const wColor = prod > 0.8 ? '#22d3ee' : (prod > 0.6 ? '#a78bfa' : '#f87171');
+
+            ctx.beginPath();
+            ctx.arc(wx, wy, wDot, 0, Math.PI * 2);
+            ctx.fillStyle = wColor;
+            ctx.globalAlpha = 0.5 + prod * 0.4;
+            ctx.fill();
+
+            // Halo de skills
+            if (w.skills && w.skills.length > 0) {
+              ctx.beginPath();
+              ctx.arc(wx, wy, wDot * 2.2, 0, Math.PI * 2);
+              ctx.fillStyle = wColor;
+              ctx.globalAlpha = 0.06 + prod * 0.08;
+              ctx.fill();
+            }
+
+            // Linha de vínculo ao processo
+            if (w.vinculo) {
+              const targetProc = emp.processos.find(p => p.name === w.vinculo);
+              if (targetProc) {
+                const pp = project(targetProc.x, targetProc.y, targetProc.z, cosY, sinY, cosX, sinX, respPulse);
+                if (pp.pz + fov > 20) {
+                  const sProc = fov / (fov + pp.pz + 240);
+                  const px2 = cx + pp.px * sProc;
+                  const py2 = cy + pp.py * sProc;
+                  ctx.beginPath();
+                  ctx.moveTo(wx, wy);
+                  ctx.lineTo(px2, py2);
+                  ctx.strokeStyle = wColor;
+                  ctx.globalAlpha = 0.08 + prod * 0.07;
+                  ctx.lineWidth = 0.5;
+                  ctx.stroke();
+                }
+              }
+            }
+          }
+        }
+      }
+      ctx.restore();
+    }
+
+    // ─── BUILDINGS (prédios sólidos) ───
+    if (zoom <= 0.45) {
+      ctx.save();
+      let buildingHover = null;
+      for (const b of BuildingSystem.buildings) {
+        if (b._animProgress < 0.05) continue;
+        const bProj = project(b.x, b.y, b.z, cosY, sinY, cosX, sinX, respPulse);
+        if (bProj.pz + fov <= 20) continue;
+        const bs = fov / (fov + bProj.pz + 240);
+        const bx = cx + bProj.px * bs;
+        const by = cy + bProj.py * bs;
+        const isBH = Math.hypot(mouseClientX - bx, mouseClientY - by) < 15;
+        if (isBH && !activeHover) buildingHover = b;
+        BuildingSystem.renderBuilding(ctx, b, cosY, sinY, cosX, sinX, respPulse, timeClock, isBH, fov, cx, cy, zoom);
+      }
+      ctx.restore();
+    }
+
+    // ─── WORKER ACTIVITIES (workers realizando processos) ───
+    if (zoom <= 0.3) {
+      WorkerActivitySystem.renderActivities(ctx, cosY, sinY, cosX, sinX, respPulse, timeClock, fov, cx, cy, zoom);
+    }
+
+    // ─── SUPPLY CHAIN (fábricas + lojas + distribuição) ───
+    if (zoom <= 0.5) {
+      SupplyChain.renderSupplyNodes(ctx, cosY, sinY, cosX, sinX, respPulse, timeClock, fov, cx, cy, zoom);
+    }
+
+    // ─── VEHICLES (carros, caminhões, ônibus nas vias) ───
+    if (zoom <= 0.6) {
+      VehicleSystem.tick();
+      VehicleSystem.renderVehicles(ctx, cosY, sinY, cosX, sinX, respPulse, timeClock, fov, cx, cy, zoom);
+    }
+
+    // ─── QUANTUM EFFECTS (nuvens, entrelaçamento, tunelamento) ───
+    QuantumViz.render(ctx, cosY, sinY, cosX, sinX, respPulse, timeClock, fov, cx, cy, zoom);
+
+    // ─── BUTTERFLY EFFECT (Lorenz, cascata, sensibilidade) ───
+    ButterflyEngine.render(ctx, cosY, sinY, cosX, sinX, respPulse, timeClock, fov, cx, cy, zoom);
+
+    // ─── TOOLTIP ───
+    const tooltipEl = document.getElementById('cluster-tooltip');
+    if (activeHover) {
+      let html = '';
+      const d = activeHover.data;
+      if (activeHover.type === 'sector') {
+        const qCloud = QuantumEngine.getCloud(d.id);
+        html = `<strong>${d.emoji} ${d.name}</strong>
+          <span class="badge" style="background:${d.color}22;color:${d.color};border:1px solid ${d.color}66;">SETOR</span>
+          <div class="metric-row"><span>Receita:</span><span class="val">R$ ${d.metrics.receita}k</span></div>
+          <div class="metric-row"><span>Custo:</span><span class="val">R$ ${d.metrics.custo}k</span></div>
+          <div class="metric-row"><span>Saúde:</span><span class="val">${(d.metrics.saude*100).toFixed(0)}%</span></div>
+          <div class="metric-row"><span>Funcionários:</span><span class="val">${d.metrics.funcionarios}</span></div>
+          <div class="metric-row"><span>Empresas:</span><span class="val">${d.empresas.length}</span></div>
+          ${qCloud ? `<div style="border-top:1px solid #ffffff15;margin:5px 0;padding-top:5px;">
+            <div style="color:#c084fc;font-size:10px;letter-spacing:1px;">ESTADO QUÂNTICO</div>
+            <div class="metric-row"><span>Superposição:</span><span class="val" style="color:${qCloud.superposed ? '#22d3ee' : '#94a3b8'}">${qCloud.superposed ? 'ATIVA' : 'COLAPSADA'}</span></div>
+            <div class="metric-row"><span>Coerência:</span><span class="val">${(qCloud.coherence*100).toFixed(0)}%</span></div>
+            <div class="metric-row"><span>Interferência:</span><span class="val" style="color:${qCloud.interference > 0 ? '#22d3ee' : '#f472b6'}">${qCloud.interference.toFixed(3)}</span></div>
+            <div class="metric-row"><span>Tunelamento:</span><span class="val" style="color:${qCloud.tunnelActive ? '#fef08a' : '#64748b'}">${qCloud.tunnelActive ? 'ATIVO' : 'INATIVO'}</span></div>
+            <div class="metric-row"><span>|ψ|²:</span><span class="val">${qCloud.p0.toFixed(3)} |0⟩ + ${(1-qCloud.p0).toFixed(3)} |1⟩</span></div>
+          </div>` : ''}`;
+      } else if (activeHover.type === 'empresa') {
+        const micro = getMicroverse(d, activeHover.parent);
+        const comms = getComms(d.id);
+        const workerCount = (d.workers || []).length;
+        const cargoCount = workerCount > 0 ? [...new Set(d.workers.map(w => w.cargo))].length : 0;
+        const avgProd = workerCount > 0 ? d.workers.reduce((a, w) => a + (w.produtividade || 0), 0) / workerCount : 0;
+
+        html = `<strong>${d.name}</strong>
+          <span class="badge" style="background:${d.color}22;color:${d.color};border:1px solid ${d.color}66;">${activeHover.parent.name}</span>
+          <div class="metric-row"><span>Receita:</span><span class="val">R$ ${d.metrics.receita}k</span></div>
+          <div class="metric-row"><span>Custo:</span><span class="val">R$ ${d.metrics.custo}k</span></div>
+          <div class="metric-row"><span>Resiliência:</span><span class="val">${(d.metrics.resiliencia*100).toFixed(0)}%</span></div>
+          <div class="metric-row"><span>Sinergia:</span><span class="val">${(d.metrics.sinergia*100).toFixed(0)}%</span></div>
+          <div class="metric-row"><span>Processos:</span><span class="val">${d.processos.length}</span></div>
+          <div style="border-top:1px solid #ffffff15;margin:5px 0;padding-top:5px;">
+            <div style="color:#22d3ee;font-size:10px;letter-spacing:1px;">ENDEREÇO DE REDE</div>
+            <div class="metric-row"><span>IP:</span><span class="val" style="font-family:monospace;">${micro.address}</span></div>
+            <div class="metric-row"><span>Signature:</span><span class="val" style="font-family:monospace;font-size:9px;">${micro.signature}</span></div>
+            <div class="metric-row"><span>Bandwidth:</span><span class="val">${micro.bandwidth.toFixed(0)} Mbps</span></div>
+            <div class="metric-row"><span>Ping:</span><span class="val">${micro.ping}ms</span></div>
+          </div>
+          <div style="border-top:1px solid #ffffff15;margin:5px 0;padding-top:5px;">
+            <div style="color:#a78bfa;font-size:10px;letter-spacing:1px;">MICROVERSO</div>
+            <div class="metric-row"><span>Extrai:</span><span class="val"> dados:${micro.extracted.dados} energy:${micro.extracted.energia} cli:${micro.extracted.clientes}</span></div>
+            <div class="metric-row"><span>Emite:</span><span class="val"> prod:${micro.emitted.produtos} srv:${micro.emitted.servicos} imp:${micro.emitted.impostos}</span></div>
+            <div class="metric-row"><span>Eficiência:</span><span class="val">${micro.efficiency.toFixed(2)}x</span></div>
+          </div>
+          <div style="border-top:1px solid #ffffff15;margin:5px 0;padding-top:5px;">
+            <div style="color:#fbbf24;font-size:10px;letter-spacing:1px;">EQUIPE (${workerCount} workers · ${cargoCount} cargos · prod média ${(avgProd*100).toFixed(0)}%)</div>
+            ${(d.workers || []).slice(0, 8).map(w => `<div class="metric-row"><span style="color:${w.produtividade > 0.8 ? '#22d3ee' : (w.produtividade > 0.6 ? '#a78bfa' : '#f87171')}">●</span><span class="val" style="font-size:10px;">${w.nome} · ${w.cargo} · ${w.vinculo}</span></div>`).join('')}
+            ${workerCount > 8 ? `<div class="metric-row"><span></span><span class="val" style="color:#64748b;font-size:9px;">+${workerCount - 8} mais...</span></div>` : ''}
+          </div>
+          <div style="border-top:1px solid #ffffff15;margin:5px 0;padding-top:5px;">
+            <div style="color:#10b981;font-size:10px;letter-spacing:1px;">COMUNICAÇÃO (${comms.length} links)</div>
+            ${comms.slice(0, 4).map(c => `<div class="metric-row"><span style="color:${c.direction === 'out' ? '#22d3ee' : '#fbbf24'}">${c.direction === 'out' ? '→' : '←'}</span><span class="val" style="font-size:10px;">${c.target} (${c.type} ${c.weight.toFixed(2)})</span></div>`).join('')}
+            ${comms.length > 4 ? `<div class="metric-row"><span></span><span class="val" style="color:#64748b;font-size:9px;">+${comms.length - 4} mais...</span></div>` : ''}
+          </div>`;
+      } else {
+        const linkedWorkers = (activeHover.parent.workers || []).filter(w => w.vinculo === d.name);
+        html = `<strong>${d.name}</strong>
+          <span class="badge" style="background:${activeHover.parent.color}22;color:${activeHover.parent.color};border:1px solid ${activeHover.parent.color}66;">${activeHover.parent.name} → ${activeHover.grandparent.name}</span>
+          <div class="metric-row"><span>Throughput:</span><span class="val">${d.metrics.throughput}/h</span></div>
+          <div class="metric-row"><span>Latência:</span><span class="val">${d.metrics.latencia}s</span></div>
+          <div class="metric-row"><span>Erro:</span><span class="val">${(d.metrics.erro*100).toFixed(1)}%</span></div>
+          <div class="metric-row"><span>Ciclo:</span><span class="val">${d.metrics.ciclo}x</span></div>
+          ${linkedWorkers.length > 0 ? `<div style="border-top:1px solid #ffffff15;margin:5px 0;padding-top:5px;">
+            <div style="color:#fbbf24;font-size:10px;letter-spacing:1px;">WORKERS VINCULADOS (${linkedWorkers.length})</div>
+            ${linkedWorkers.map(w => `<div class="metric-row"><span style="color:${w.produtividade > 0.8 ? '#22d3ee' : (w.produtividade > 0.6 ? '#a78bfa' : '#f87171')}">●</span><span class="val" style="font-size:10px;">${w.nome} · ${w.cargo}</span></div>`).join('')}
+          </div>` : ''}`;
+      }
+      tooltipEl.innerHTML = html;
+      tooltipEl.style.left = Math.min(window.innerWidth - 380, activeHover.sx + 16) + 'px';
+      tooltipEl.style.top = Math.min(window.innerHeight - 120, activeHover.sy - 30) + 'px';
+      tooltipEl.classList.add('visible');
+    } else {
+      tooltipEl.classList.remove('visible');
+    }
+
+    ctx.globalAlpha = 1.0;
+    requestAnimationFrame(animateCity);
+  }
+
+  animateCity();
+  updateHUD();
+</script>
+</body>
+</html>

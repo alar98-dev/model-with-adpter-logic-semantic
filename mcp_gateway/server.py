@@ -128,6 +128,30 @@ async def handle_list_tools() -> list[types.Tool]:
             }
         ),
         types.Tool(
+            name="swa_encode_tensor",
+            description="Empacota e assina digitalmente um vetor/tensor usando o SWA-TensorProtocol (Base64 + BLAKE3).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "vector": {"type": "array", "items": {"type": "number"}, "description": "Lista de números de ponto flutuante."},
+                    "dtype": {"type": "string", "enum": ["float32", "float16", "float64"], "description": "Precisão (default: float32)."},
+                    "metadata": {"type": "object", "description": "Metadados semânticos opcionais."}
+                },
+                "required": ["vector"]
+            }
+        ),
+        types.Tool(
+            name="swa_decode_tensor",
+            description="Decodifica e verifica a integridade biológico-sintética (Assinatura BLAKE3) de um pacote SWA-TensorProtocol.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "packet": {"type": "object", "description": "Pacote contendo protocol, shape, dtype, blake3_signature e tensor_b64."}
+                },
+                "required": ["packet"]
+            }
+        ),
+        types.Tool(
             name="project_scripts",
             description="Lista ou executa scripts no Debian. Permite rodar shell scripts ou python nativamente.",
             inputSchema={
@@ -340,7 +364,7 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
         if not base_path:
             return [types.TextContent(type="text", text="❌ ERRO: base_path é obrigatório.")]
             
-        scripts_path = os.path.abspath(base_path)
+        scripts_path = os.path.realpath(base_path)
         if not os.path.exists(scripts_path):
             return [types.TextContent(type="text", text=f"❌ ERRO: Diretório não encontrado: {scripts_path}")]
             
@@ -355,8 +379,12 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
             if not script:
                 return [types.TextContent(type="text", text="❌ ERRO: script não informado.")]
                 
-            script_path = os.path.normpath(os.path.join(scripts_path, script))
-            if not script_path.startswith(scripts_path):
+            script_path = os.path.realpath(os.path.join(scripts_path, script))
+            try:
+                within_scripts_path = os.path.commonpath((scripts_path, script_path)) == scripts_path
+            except ValueError:
+                within_scripts_path = False
+            if not within_scripts_path:
                 return [types.TextContent(type="text", text="❌ ERRO: Acesso negado (Path Traversal).")]
                 
             if not os.path.exists(script_path):
@@ -398,6 +426,44 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
                 return [types.TextContent(type="text", text="❌ ERRO: Timeout. O script passou de 2 minutos.")]
             except Exception as e:
                 return [types.TextContent(type="text", text=f"❌ ERRO na execução: {str(e)}")]
+
+    elif name == "swa_encode_tensor":
+        from swa.tensor_protocol import SWATensorProtocol
+        vector = arguments.get("vector", [])
+        dtype = arguments.get("dtype", "float32")
+        meta = arguments.get("metadata", {})
+        try:
+            packet = SWATensorProtocol.encode(vector, metadata=meta, dtype=dtype)
+            import json
+            res = "🧬 =================  SWA TENSOR ENCODER (Base64 + BLAKE3)  ================ 🧬\n"
+            res += f"  Versão Protocolo: {packet['protocol']}\n"
+            res += f"  Shape: {packet['shape']}\n"
+            res += f"  Dtype: {packet['dtype']}\n"
+            res += f"  Assinatura BLAKE3: {packet['blake3_signature']}\n"
+            res += f"  Tamanho Base64: {len(packet['tensor_b64'])} chars\n"
+            res += f"  JSON Payload:\n{json.dumps(packet, indent=2)}\n"
+            res += "____________________________________________________________________"
+            return [types.TextContent(type="text", text=res)]
+        except Exception as e:
+            return [types.TextContent(type="text", text=f"❌ Erro na codificação tensorial: {str(e)}")]
+
+    elif name == "swa_decode_tensor":
+        from swa.tensor_protocol import SWATensorProtocol, TensorIntegrityError
+        packet = arguments.get("packet", {})
+        try:
+            array = SWATensorProtocol.decode(packet, return_type="numpy")
+            res = "🛡️ =================  SWA TENSOR DECODER & INTEGRITY CHECK  ================ 🛡️\n"
+            res += "  ✅ ASSINATURA BLAKE3 VERIFICADA COM SUCESSO!\n"
+            res += f"  Shape Decodificado: {list(array.shape)}\n"
+            res += f"  Dtype: {array.dtype}\n"
+            res += f"  Min / Max / Mean: {float(array.min()):.4f} / {float(array.max()):.4f} / {float(array.mean()):.4f}\n"
+            res += f"  Primeiros 5 valores: {array.flatten()[:5].tolist()}\n"
+            res += "____________________________________________________________________"
+            return [types.TextContent(type="text", text=res)]
+        except TensorIntegrityError as tie:
+            return [types.TextContent(type="text", text=f"🚨 ALERTA IMUNOLÓGICO: {str(tie)}")]
+        except Exception as e:
+            return [types.TextContent(type="text", text=f"❌ Erro ao decodificar pacote: {str(e)}")]
 
     raise ValueError(f"Unknown tool: {name}")
 

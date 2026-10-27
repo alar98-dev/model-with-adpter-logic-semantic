@@ -378,6 +378,16 @@ def main_loop(model_dir: str = None):
                 },
             }
 
+            # Publicação atômica em /dev/shm para o QuantumPhaseBridge e Anel Z_60
+            try:
+                shm_obelisk_path = "/dev/shm/aeon/obelisk_state.json"
+                tmp_shm = f"{shm_obelisk_path}.tmp"
+                with open(tmp_shm, "w") as f_shm:
+                    json.dump(heartbeat_payload, f_shm)
+                os.replace(tmp_shm, shm_obelisk_path)
+            except Exception:
+                pass
+
             if sock:
                 emit_event(sock, "OBELISK_HEARTBEAT", heartbeat_payload)
 

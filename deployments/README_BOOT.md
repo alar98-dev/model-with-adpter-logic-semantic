@@ -51,3 +51,12 @@ journalctl -u swa-manifold -u swa-auto -b --no-pager | tail -40
 ```bash
 ./venv/bin/python3 scripts/rebuild_vector_reality.py
 ```
+
+## Limites de rede
+
+- Serviços internos (OODA/REST `20001`, MCP `8000`, UDP interno `20005`, córtex auditivo `9200`) escutam apenas em `127.0.0.1`.
+- Chat na LAN usa `python aeonc.py --api --host <IP_LAN_DO_HOST> --port 20000 --compile --tensors`; o padrão de `--host` é loopback. Não vincule o host em `0.0.0.0` e não encaminhe a porta para a Internet.
+- O TTS REST é um receptor separado na LAN em `POST /api/v1/speak`. Configure `SWA_TTS_REST_URL=http://<IP_LAN_DO_RECEPTOR>:9300/api/v1/speak` no ambiente do processo AeonC; o padrão é `http://127.0.0.1:9300/api/v1/speak`. O legado UDP `9100` continua local e é uma interface diferente.
+- `swa-tts.service` é o único proprietário da API canônica `9300`; não inicie `server.py` via `run.py` ao mesmo tempo. O servidor HTTP legado de `receiverController.py`, quando explicitamente iniciado, usa loopback `9301`.
+- A API de chat não tem autenticação própria; aplique regra de firewall para aceitar somente clientes da LAN confiável. Veja `docs/api.md`.
+- Receptores opcionais de telemetria/gravidade permanecem em loopback por padrão; habilite acesso em outro host apenas vinculando ao IP de interface necessário.

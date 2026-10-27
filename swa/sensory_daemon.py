@@ -1,5 +1,6 @@
 import queue
 import threading
+from swa.paths import project_path
 import json
 import time
 import sys
@@ -31,15 +32,15 @@ class SensoryOutputDaemon(threading.Thread):
                     sys.stdout.flush()
                     
                 elif msg_type == "LOG_AEON":
-                    with open("/services/model-with-adpter-logic-semantic/swa_Aeon.log", "a", encoding="utf-8") as f:
+                    with open(project_path("swa_Aeon.log"), "a", encoding="utf-8") as f:
                         f.write(payload)
                         
                 elif msg_type == "LOG_PURO":
-                    with open("/services/model-with-adpter-logic-semantic/swa_PENSAMENTO_PURO.log", "a", encoding="utf-8") as f:
+                    with open(project_path("swa_PENSAMENTO_PURO.log"), "a", encoding="utf-8") as f:
                         f.write(payload)
                         
                 elif msg_type == "JSONL":
-                    with open("/services/model-with-adpter-logic-semantic/chaos_telemetry.jsonl", "a", encoding="utf-8") as f:
+                    with open(project_path("chaos_telemetry.jsonl"), "a", encoding="utf-8") as f:
                         f.write(json.dumps(payload) + "\n")
                         
                 elif msg_type == "UDP":

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -50,6 +51,14 @@ def _ensure_loaded() -> None:
         _processor = AutoProcessor.from_pretrained(path)
         _model = AutoModelForCausalLM.from_pretrained(path, torch_dtype=torch.float32)
         _model.to("cpu").eval()
+        if os.environ.get("SWA_INT8", "0") == "1":
+            try:
+                from torchao.quantization import quantize_
+                from torchao.quantization.quant_api import Int8WeightOnlyConfig
+                quantize_(_model, Int8WeightOnlyConfig())
+                print("⚡ [EMBEDDER] Quantização INT8 weight-only aplicada")
+            except Exception as e:
+                print(f"⚠️ [EMBEDDER] INT8 indisponível: {e}")
         _ready = True
 
 

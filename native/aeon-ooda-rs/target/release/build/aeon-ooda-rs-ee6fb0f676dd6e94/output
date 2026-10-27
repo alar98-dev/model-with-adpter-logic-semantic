@@ -1,0 +1,4 @@
+cargo:rustc-link-search=native=/home/alifer/swa-aeon/native/aeon-ooda-rs/c_src
+cargo:rustc-link-lib=static=sumerian_tensor
+cargo:rerun-if-changed=c_src/sumerian_tensor.c
+cargo:rerun-if-changed=c_src/sumerian_tensor.h

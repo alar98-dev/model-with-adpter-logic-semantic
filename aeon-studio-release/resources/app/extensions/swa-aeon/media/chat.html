@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWA Aeon Córtex</title>
+    <style>
+        :root {
+            --bg-color: #07090e;
+            --panel-bg: rgba(13, 17, 28, 0.85);
+            --card-bg: rgba(20, 27, 45, 0.7);
+            --border-color: rgba(99, 102, 241, 0.22);
+            --border-highlight: rgba(168, 85, 247, 0.4);
+            --primary-glow: #6366f1;
+            --secondary-glow: #a855f7;
+            --accent-cyan: #06b6d4;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --text-color: #e2e8f0;
+            --text-muted: #8492a6;
+            --font-mono: 'Consolas', 'Fira Code', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 3D Dynamic Synaptic Header */
+        #hgheader {
+            height: 96px;
+            position: relative;
+            background: linear-gradient(180deg, rgba(99, 102, 241, 0.12) 0%, rgba(7, 9, 14, 0.6) 100%);
+            border-bottom: 1px solid var(--border-color);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+        }
+
+        #hgheader svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .header-content {
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        #header-title {
+            font-weight: 800;
+            font-size: 1.05rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #ffffff;
+            text-shadow: 0 0 12px rgba(99, 102, 241, 0.75);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #header-subtitle {
+            font-size: 0.68rem;
+            letter-spacing: 0.14em;
+            color: #c084fc;
+            text-transform: uppercase;
+            font-weight: 600;
+            opacity: 0.9;
+            margin-top: 3px;
+            text-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+        }
+
+        .cortex-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 12px;
+            font-size: 0.62rem;
+            color: #34d399;
+            margin-top: 4px;
+            letter-spacing: 0.05em;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 6px #10b981;
+            animation: pulse-dot 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.6; }
+        }
+
+        /* Quick Action Bar */
+        #quick-actions {
+            background: rgba(13, 17, 28, 0.95);
+            border-bottom: 1px solid var(--border-color);
+            padding: 6px 10px;
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        #quick-actions::-webkit-scrollbar { display: none; }
+
+        .quick-btn {
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            color: #c7d2fe;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .quick-btn:hover {
+            background: rgba(99, 102, 241, 0.22);
+            border-color: var(--primary-glow);
+            color: #ffffff;
+            box-shadow: 0 0 8px rgba(99, 102, 241, 0.2);
+        }
+
+        /* Context File Drawer */
+        #file-drawer {
+            background: rgba(10, 14, 23, 0.95);
+            border-bottom: 1px solid var(--border-color);
+            padding: 6px 12px;
+            max-height: 100px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .drawer-title {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .drawer-refresh-btn {
+            cursor: pointer;
+            color: #818cf8;
+            font-size: 0.68rem;
+            transition: color 0.2s;
+        }
+        .drawer-refresh-btn:hover {
+            color: #a5b4fc;
+            text-decoration: underline;
+        }
+
+        .file-item {
+            font-size: 0.76rem;
+            color: #a5b4fc;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: rgba(99, 102, 241, 0.06);
+            cursor: pointer;
+            border: 1px solid rgba(99, 102, 241, 0.12);
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .file-item:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: var(--primary-glow);
+            color: white;
+            box-shadow: 0 0 8px rgba(99, 102, 241, 0.15);
+        }
+
+        /* Chat Workspace */
+        #chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message-row {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .message {
+            max-width: 90%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 0.88rem;
+            line-height: 1.45;
+            backdrop-filter: blur(10px);
+            word-wrap: break-word;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(79, 70, 229, 0.35));
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            color: #f8fafc;
+            border-bottom-right-radius: 2px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .message.aeon-container {
+            align-self: flex-start;
+            width: 95%;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        /* Structured Telemetry Card (Onda Híbrida) */
+        .telemetry-card {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 0.72rem;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .telemetry-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #c084fc;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .telemetry-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 8px;
+            margin-top: 2px;
+        }
+
+        .telemetry-chip {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            color: #93c5fd;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .telemetry-chip .val {
+            color: #38bdf8;
+            font-weight: 600;
+        }
+
+        /* Core Semantic Text Block */
+        .semantic-content {
+            background: rgba(17, 24, 39, 0.75);
+            border: 1px solid rgba(168, 85, 247, 0.25);
+            padding: 10px 14px;
+            border-radius: 10px;
+            color: #f1f5f9;
+            font-size: 0.88rem;
+            line-height: 1.5;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Closing Thermodynamic Metric Pill */
+        .convergence-bar {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px dashed rgba(168, 85, 247, 0.35);
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 0.68rem;
+            font-family: var(--font-mono);
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            animation: fadeIn 0.3s ease;
+        }
+        .convergence-bar .metric {
+            color: #34d399;
+            font-weight: 600;
+        }
+
+        /* Code snippets & highlighting */
+        .code-container {
+            position: relative;
+            margin: 8px 0;
+            background: #060911;
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .code-header {
+            background: rgba(15, 23, 42, 0.9);
+            padding: 4px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            font-family: var(--font-mono);
+        }
+
+        .copy-code-btn {
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: #c7d2fe;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 0.65rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .copy-code-btn:hover {
+            background: rgba(99, 102, 241, 0.3);
+            color: #fff;
+        }
+
+        .code-block {
+            padding: 8px 12px;
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            line-height: 1.4;
+            color: #e2e8f0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            margin: 0;
+        }
+
+        /* Streaming animations */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .stream-cursor, .thinking-dots {
+            display: inline-block;
+            animation: blink 0.8s step-start infinite;
+            color: var(--secondary-glow);
+            font-weight: bold;
+            margin-left: 2px;
+        }
+        /* ─── DYNAMIC SVG EMISSION EVENT BADGE & HOVER POPOVER ─── */
+        .fission-emission-wrapper {
+            position: relative;
+            display: inline-flex;
+            margin: 6px 0;
+            vertical-align: middle;
+        }
+
+        .fission-emission-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 4px 10px;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.16), rgba(245, 158, 11, 0.18));
+            border: 1px solid rgba(245, 158, 11, 0.45);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.18);
+            user-select: none;
+        }
+
+        .fission-emission-pill:hover {
+            transform: translateY(-1px) scale(1.02);
+            border-color: #f59e0b;
+            box-shadow: 0 0 16px rgba(245, 158, 11, 0.4);
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(245, 158, 11, 0.28));
+        }
+
+        .fission-svg-icon {
+            width: 16px;
+            height: 16px;
+            animation: rotateCore 4s linear infinite;
+        }
+
+        @keyframes rotateCore {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .fission-pill-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            color: #fbbf24;
+            font-family: var(--font-mono);
+        }
+
+        .fission-pill-amp {
+            font-size: 0.65rem;
+            color: #fca5a5;
+            background: rgba(239, 68, 68, 0.25);
+            padding: 1px 5px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        /* Pure Information Popover / Tooltip */
+        .fission-tooltip {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            min-width: 270px;
+            background: rgba(10, 15, 30, 0.96);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(245, 158, 11, 0.5);
+            border-radius: 8px;
+            padding: 10px 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 14px rgba(245, 158, 11, 0.25);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(6px);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 100;
+        }
+
+        .fission-emission-wrapper:hover .fission-tooltip {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+
+        .tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.72rem;
+            line-height: 1.5;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .tooltip-val {
+            color: #e2e8f0;
+            font-weight: bold;
+        }
+
+        .tooltip-target {
+            color: #a855f7;
+            background: rgba(168, 85, 247, 0.12);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+
+        /* Input Panel */
+        #input-panel {
+            padding: 10px 12px;
+            background: rgba(10, 14, 23, 0.95);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        #msg-input {
+            flex: 1;
+            background: rgba(20, 27, 45, 0.7);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 9px 12px;
+            color: white;
+            font-size: 0.86rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        #msg-input:focus {
+            border-color: var(--primary-glow);
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.25);
+            background: rgba(24, 33, 56, 0.85);
+        }
+
+        #send-btn {
+            background: linear-gradient(135deg, var(--primary-glow), var(--secondary-glow));
+            border: none;
+            color: white;
+            padding: 9px 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.82rem;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        #send-btn:hover {
+            opacity: 0.92;
+            transform: translateY(-1px);
+        }
+        #send-btn:active {
+            transform: translateY(0);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header Tensorial -->
+    <div id="hgheader">
+        <svg id="synaptic-flow" viewBox="0 0 400 96">
+            <path id="wave1" d="" fill="none" stroke="url(#gradient1)" stroke-width="2" />
+            <path id="wave2" d="" fill="none" stroke="url(#gradient2)" stroke-width="1.2" opacity="0.65" />
+            <defs>
+                <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#6366f1" />
+                    <stop offset="50%" stop-color="#a855f7" />
+                    <stop offset="100%" stop-color="#38bdf8" />
+                </linearGradient>
+                <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#a855f7" />
+                    <stop offset="50%" stop-color="#ec4899" />
+                    <stop offset="100%" stop-color="#6366f1" />
+                </linearGradient>
+            </defs>
+        </svg>
+        <div class="header-content">
+            <h1 id="header-title">⚡ SWA AEON CÓRTEX</h1>
+            <div id="header-subtitle">Comunicação Tensorial Ativa</div>
+            <div class="cortex-status-badge">
+                <span class="status-dot"></span>
+                <span>AEON Gateway :8050 | OODA + SSE + BLAKE3</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Action Bar -->
+    <div id="quick-actions">
+        <button class="quick-btn" id="action-matrix">⚡ Matriz Vetorial</button>
+        <button class="quick-btn" id="action-explain">🔍 Explicar Código</button>
+        <button class="quick-btn" id="action-fix">🛠️ Corrigir Seleção</button>
+        <button class="quick-btn" id="action-context">📋 Injetar Contexto</button>
+    </div>
+
+    <!-- Deck Eventual de Estados Latentes & Fissão (Fora do Fluxo de Texto) -->
+    <div id="latent-hologram-deck" style="display: none; padding: 6px 12px; background: rgba(15, 23, 42, 0.95); border-bottom: 1px solid rgba(245, 158, 11, 0.35); flex-shrink: 0;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <svg class="fission-svg-icon" viewBox="0 0 24 24" fill="none" style="width:16px;height:16px;">
+                    <circle cx="12" cy="12" r="9" stroke="url(#deck-fiss-grad)" stroke-width="2" stroke-dasharray="4 2"/>
+                    <circle cx="12" cy="12" r="4" fill="#f59e0b"/>
+                    <path d="M12 2 L12 6 M12 18 L12 22 M2 12 L6 12 M18 12 L22 12" stroke="#ef4444" stroke-width="1.5"/>
+                    <defs>
+                        <linearGradient id="deck-fiss-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#f59e0b"/>
+                            <stop offset="100%" stop-color="#ef4444"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <span id="deck-fission-title" style="font-size:0.74rem; font-weight:700; color:#fbbf24; font-family:var(--font-mono); letter-spacing:0.05em;">🔥 FISSÃO TERMODINÂMICA ATIVA</span>
+            </div>
+            <span id="deck-fission-amp" style="font-size:0.68rem; color:#fca5a5; background:rgba(239, 68, 68, 0.3); border:1px solid rgba(239, 68, 68, 0.5); padding:1px 6px; border-radius:10px; font-weight:bold;">2.04x</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size:0.7rem; color:#cbd5e1; font-family:var(--font-mono); margin-bottom: 5px;">
+            <div>🎯 <b>Alvo:</b> <span id="deck-fission-target" style="color:#a855f7; background:rgba(168,85,247,0.15); padding:1px 5px; border-radius:3px;">KBASE_EPISODIC_ATTRACTOR</span></div>
+            <div>⚡ <b>Inércia:</b> <span id="deck-fission-inertia" style="color:#10b981;">+768 tok</span></div>
+        </div>
+        <div class="fission-bar-container" style="height:3px;">
+            <div class="fission-bar-progress"></div>
+        </div>
+    </div>
+
+    <!-- Espaço de Conversação e Eventos Semânticos -->
+    <div id="chat-area"></div>
+
+    <!-- Painel de Entrada de Prompts -->
+    <div id="input-panel">
+        <input type="text" id="msg-input" placeholder="Escreva para o córtex de Aeon..." autocomplete="off">
+        <button id="send-btn">ENVIAR</button>
+    </div>
+
+    <script>
+        const vscode = acquireVsCodeApi();
+        const msgInput = document.getElementById('msg-input');
+        const sendBtn = document.getElementById('send-btn');
+        const chatArea = document.getElementById('chat-area');
+        const filesList = document.getElementById('files-list');
+        const refreshFilesBtn = document.getElementById('refresh-files');
+
+        // Quick action buttons
+        document.getElementById('action-matrix')?.addEventListener('click', () => {
+            vscode.postMessage({ command: 'openMatrix' });
+        });
+        document.getElementById('action-explain')?.addEventListener('click', () => {
+            vscode.postMessage({ command: 'quickExplain' });
+        });
+        document.getElementById('action-fix')?.addEventListener('click', () => {
+            vscode.postMessage({ command: 'quickFix' });
+        });
+        document.getElementById('action-context')?.addEventListener('click', () => {
+            vscode.postMessage({ command: 'quickAddToContext' });
+        });
+
+        // Dynamic 3D Synaptic Wave Animation
+        let t = 0;
+        function animateWaves() {
+            t += 0.02;
+            const w1 = document.getElementById('wave1');
+            const w2 = document.getElementById('wave2');
+            if (w1 && w2) {
+                let d1 = "M 0 48 ";
+                let d2 = "M 0 48 ";
+                for (let x = 0; x <= 400; x += 10) {
+                    const perspective = Math.sin((x / 400) * Math.PI);
+                    const y1 = 48 + Math.sin(x * 0.03 + t) * 14 * perspective + Math.cos(x * 0.01 + t * 2) * 4 * perspective;
+                    const y2 = 48 + Math.cos(x * 0.02 - t) * 10 * perspective + Math.sin(x * 0.04 + t * 1.5) * 5 * perspective;
+                    d1 += `L ${x} ${y1} `;
+                    d2 += `L ${x} ${y2} `;
+                }
+                w1.setAttribute('d', d1);
+                w2.setAttribute('d', d2);
+            }
+            requestAnimationFrame(animateWaves);
+        }
+        animateWaves();
+
+        // Request workspace files
+        function requestFiles() {
+            vscode.postMessage({ command: 'listWorkspaceFiles' });
+        }
+        requestFiles();
+        if (refreshFilesBtn) {
+            refreshFilesBtn.addEventListener('click', requestFiles);
+        }
+
+        // Handle sending messages
+        function sendMessage() {
+            const text = msgInput.value.trim();
+            if (!text) return;
+            
+            // Add user message
+            const row = document.createElement('div');
+            row.className = 'message-row';
+            const userMsg = document.createElement('div');
+            userMsg.className = 'message user';
+            userMsg.textContent = text;
+            row.appendChild(userMsg);
+            chatArea.appendChild(row);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            
+            // Post to extension
+            vscode.postMessage({
+                command: 'sendMessage',
+                text: text
+            });
+            
+            msgInput.value = '';
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        msgInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Telemetry & Content Parser Engine
+        function cleanRawString(str) {
+            if (!str) return '';
+            let s = str.trim();
+            // Handle double escaped JSON string
+            if (s.startsWith('"') && s.endsWith('"') && s.length > 1) {
+                try {
+                    s = JSON.parse(s);
+                } catch (_) {
+                    s = s.substring(1, s.length - 1);
+                }
+            }
+            // Strip ANSI sequences & escape artifacts
+            s = s.replace(/\u001b\[[0-9;]*[a-zA-Z]/g, '');
+            s = s.replace(/\\u001b\[[0-9;]*[a-zA-Z]/g, '');
+            s = s.replace(/\033\[[0-9;]*[a-zA-Z]/g, '');
+            s = s.replace(/\[\d+m/g, '');
+            s = s.replace(/\[0m/g, '');
+            return s.trim();
+        }
+
+        function parseCognitiveWave(rawText) {
+            const cleaned = cleanRawString(rawText);
+            
+            let headerTelemetry = null;
+            let footerTelemetry = null;
+            let mainBody = cleaned;
+
+            // Match Onda Híbrida / Header block: ╭─── [ ⚡ Onda ... ]
+            const headerMatch = mainBody.match(/╭?───?\s*\[\s*(⚡\s*Onda[^\]]+)\]/i);
+            if (headerMatch) {
+                const headerLine = headerMatch[1];
+                mainBody = mainBody.replace(headerMatch[0], '');
+                // Parse chips: Ext: 191.4 | Int: 198.8 | Potencial: 12 ...
+                const parts = headerLine.split('|').map(p => p.trim());
+                const title = parts[0];
+                const metrics = [];
+                for (let i = 1; i < parts.length; i++) {
+                    const kv = parts[i].split(':').map(k => k.trim());
+                    if (kv.length >= 2) {
+                        metrics.push({ label: kv[0], value: kv.slice(1).join(':') });
+                    } else if (parts[i]) {
+                        metrics.push({ label: '', value: parts[i] });
+                    }
+                }
+                headerTelemetry = { title, metrics };
+            }
+
+            // Match Onda Concluída / Footer block: ╰─── [ ⚡ Onda Concluída ... ]
+            const footerMatch = mainBody.match(/╰?───?\s*\[\s*(⚡\s*Onda Concluída[^\]]+)\]/i);
+            if (footerMatch) {
+                const footerLine = footerMatch[1];
+                mainBody = mainBody.replace(footerMatch[0], '');
+                const parts = footerLine.split('|').map(p => p.trim());
+                const title = parts[0];
+                const metrics = [];
+                for (let i = 1; i < parts.length; i++) {
+                    const kv = parts[i].split(':').map(k => k.trim());
+                    if (kv.length >= 2) {
+                        metrics.push({ label: kv[0], value: kv.slice(1).join(':') });
+                    }
+                }
+                footerTelemetry = { title, metrics };
+            }
+
+            // Extract Fissão Termodinâmica into isolated metadata & strip from text body
+            let activeFission = null;
+            const fissionMatch = mainBody.match(/├?───?\s*\[\s*🔥\s*FISSÃO TERMODINÂMICA[^\]]*\]/i);
+            if (fissionMatch) {
+                const matchStr = fissionMatch[0];
+                let lvl = '1';
+                let inertia = '768';
+                let amplitude = '1.50x';
+                let target = 'K-BASE EPISODIC ATTRACTOR';
+                
+                const lvlM = matchStr.match(/Nível:?\s*(\d+)/i);
+                if (lvlM) lvl = lvlM[1];
+                const ineM = matchStr.match(/Inércia:?\s*\+?(\d+)/i);
+                if (ineM) inertia = ineM[1];
+                const ampM = matchStr.match(/Amplitude\s*\([^\)]*\):?\s*([\d\.]+x?)/i);
+                if (ampM) amplitude = ampM[1].endsWith('x') ? ampM[1] : ampM[1] + 'x';
+                const tgtM = matchStr.match(/Alvo:?\s*([^|\]]+)/i);
+                if (tgtM) target = tgtM[1].trim();
+                
+                activeFission = { lvl, inertia, amplitude, target };
+            }
+
+            // Remove specific telemetry headers and footers from text body WITHOUT wiping real content
+            mainBody = mainBody.replace(/├?───?\s*\[\s*🔥\s*FISSÃO TERMODINÂMICA[^\]]*\]\s*/gi, '');
+            mainBody = mainBody.replace(/╭?───?\s*\[\s*⚡\s*Onda[^\]]*\]\s*/gi, '');
+            mainBody = mainBody.replace(/╰?───?\s*\[\s*⚡\s*Onda[^\]]*\]\s*/gi, '');
+            mainBody = mainBody.replace(/\033\[[0-9;]*[a-zA-Z]/g, '');
+            mainBody = mainBody.replace(/\[\d+m/g, '');
+
+            // Fallback: se o corpo estiver vazio mas a string pura tiver conteúdo
+            if (!mainBody.trim() && cleaned.trim()) {
+                const lines = cleaned.split('\n').filter(l => !l.includes('Onda Híbrida') && !l.includes('FISSÃO') && !l.includes('Onda Concluída'));
+                mainBody = lines.join('\n').trim();
+            }
+
+            return { headerTelemetry, mainBody: mainBody.trim(), footerTelemetry, activeFission };
+        }
+
+        function formatMarkdownToHtml(text) {
+            if (!text) return '';
+            
+            // Extract existing HTML fission emission badges to preserve them from escaping
+            const cards = [];
+            let safeText = text.replace(/<div class="fission-emission-wrapper">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/gi, (m) => {
+                cards.push(m);
+                return `__FISSION_EMISSION_${cards.length - 1}__`;
+            });
+
+            // Basic code block support ```code```
+            let escaped = escapeHtml(safeText);
+            
+            // Format ```lang ... ```
+            escaped = escaped.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+                const language = lang || 'código';
+                return `
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span>${language}</span>
+                            <button class="copy-code-btn" onclick="copyCode(this)">Copiar</button>
+                        </div>
+                        <pre class="code-block">${code.trim()}</pre>
+                    </div>
+                `;
+            });
+
+            // Format `inline code`
+            escaped = escaped.replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.1);padding:2px 4px;border-radius:4px;font-family:var(--font-mono);font-size:0.85em;">$1</code>');
+
+            // Format **bold**
+            escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+
+            // Replace linebreaks with <br>
+            escaped = escaped.replace(/\n/g, '<br>');
+
+            // Restore HTML dynamic SVG fission emission badges
+            cards.forEach((card, idx) => {
+                escaped = escaped.replace(`__FISSION_EMISSION_${idx}__`, card);
+            });
+
+            return escaped;
+        }
+
+        window.copyCode = function(button) {
+            const container = button.closest('.code-container');
+            const codeBlock = container?.querySelector('.code-block');
+            if (codeBlock) {
+                navigator.clipboard.writeText(codeBlock.innerText).then(() => {
+                    const original = button.innerText;
+                    button.innerText = 'Copiado!';
+                    setTimeout(() => button.innerText = original, 2000);
+                });
+            }
+        };
+
+        function renderAeonResponse(parsed) {
+            const container = document.createElement('div');
+            container.className = 'message aeon-container';
+
+            // 1. Top Telemetry Card (if present)
+            if (parsed.headerTelemetry) {
+                const card = document.createElement('div');
+                card.className = 'telemetry-card';
+                
+                const header = document.createElement('div');
+                header.className = 'telemetry-header';
+                header.innerHTML = `<span>${parsed.headerTelemetry.title || '⚡ ONDA HÍBRIDA'}</span>`;
+                card.appendChild(header);
+
+                if (parsed.headerTelemetry.metrics && parsed.headerTelemetry.metrics.length > 0) {
+                    const grid = document.createElement('div');
+                    grid.className = 'telemetry-grid';
+                    parsed.headerTelemetry.metrics.forEach(m => {
+                        const chip = document.createElement('div');
+                        chip.className = 'telemetry-chip';
+                        chip.innerHTML = `${m.label ? `<span style="color:var(--text-muted)">${m.label}:</span>` : ''} <span class="val">${m.value}</span>`;
+                        grid.appendChild(chip);
+                    });
+                    card.appendChild(grid);
+                }
+                container.appendChild(card);
+            }
+
+            // 2. Main Semantic Response (Garante que nunca renderize um bloco vazio)
+            const textToRender = parsed.mainBody || '[CÓRTEX] Pensamento cristalizado sem emissão sintática.';
+            const semantic = document.createElement('div');
+            semantic.className = 'semantic-content';
+            semantic.innerHTML = formatMarkdownToHtml(textToRender);
+            container.appendChild(semantic);
+
+            // 3. Footer Convergence Bar (if present)
+            if (parsed.footerTelemetry) {
+                const bar = document.createElement('div');
+                bar.className = 'convergence-bar';
+                let metricsHtml = parsed.footerTelemetry.metrics.map(m => `<span>${m.label}: <span class="metric">${m.value}</span></span>`).join(' | ');
+                bar.innerHTML = `<span>${parsed.footerTelemetry.title}</span> <div>${metricsHtml}</div>`;
+                container.appendChild(bar);
+            }
+
+            return container;
+        }
+
+        function updateLatentHologramDeck(fissionData) {
+            const deck = document.getElementById('latent-hologram-deck');
+            if (!deck) return;
+            if (fissionData) {
+                deck.style.display = 'block';
+                document.getElementById('deck-fission-title').textContent = `🔥 FISSÃO TERMODINÂMICA (Nível ${fissionData.lvl})`;
+                document.getElementById('deck-fission-amp').textContent = fissionData.amplitude;
+                document.getElementById('deck-fission-target').textContent = fissionData.target;
+                document.getElementById('deck-fission-inertia').textContent = `+${fissionData.inertia} tok`;
+            } else {
+                deck.style.display = 'none';
+            }
+        }
+
+        // Live stream accumulator
+        let streamAccumulator = '';
+
+        // Listen for messages from extension
+        window.addEventListener('message', event => {
+            const message = event.data;
+
+            switch (message.command) {
+                case 'streamStart': {
+                    streamAccumulator = '';
+                    updateLatentHologramDeck(null);
+                    const row = document.createElement('div');
+                    row.className = 'message-row';
+                    row.id = 'aeon-stream-row';
+
+                    const container = document.createElement('div');
+                    container.className = 'message aeon-container streaming';
+                    container.id = 'aeon-stream-container';
+                    
+                    const semantic = document.createElement('div');
+                    semantic.className = 'semantic-content';
+                    semantic.id = 'stream-semantic-target';
+                    semantic.innerHTML = '<span class="thinking-dots">▋ Sintonizando pulso...</span>';
+
+                    container.appendChild(semantic);
+                    row.appendChild(container);
+                    chatArea.appendChild(row);
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    break;
+                }
+
+                case 'streamChunk': {
+                    streamAccumulator += message.text;
+                    const target = document.getElementById('stream-semantic-target');
+                    if (target) {
+                        const parsed = parseCognitiveWave(streamAccumulator);
+                        if (parsed.activeFission) {
+                            updateLatentHologramDeck(parsed.activeFission);
+                        }
+                        target.innerHTML = formatMarkdownToHtml(parsed.mainBody) + '<span class="stream-cursor">▋</span>';
+                    }
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    break;
+                }
+
+                case 'streamEnd': {
+                    const row = document.getElementById('aeon-stream-row');
+                    const fullText = (streamAccumulator || message.text || '').trim();
+                    const parsed = parseCognitiveWave(fullText);
+                    if (parsed.activeFission) {
+                        updateLatentHologramDeck(parsed.activeFission);
+                    } else {
+                        setTimeout(() => updateLatentHologramDeck(null), 3000);
+                    }
+
+                    if (row) {
+                        row.innerHTML = '';
+                        row.appendChild(renderAeonResponse(parsed));
+                        row.id = '';
+                    } else {
+                        const newRow = document.createElement('div');
+                        newRow.className = 'message-row';
+                        newRow.appendChild(renderAeonResponse(parsed));
+                        chatArea.appendChild(newRow);
+                    }
+                    streamAccumulator = '';
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    break;
+                }
+
+                case 'streamDiagnostic': {
+                    const event = message.event || {};
+                    const fission = event.fission || {};
+                    const flow = event.flow || {};
+                    const status = document.querySelector('.cortex-status-badge span:last-child');
+                    if (status && (fission.embedding_source || flow.phase)) {
+                        const source = fission.embedding_source || 'telemetria';
+                        const phase = fission.wave_index !== undefined
+                            ? `fissão ${fission.wave_index}`
+                            : (flow.phase || 'OODA');
+                        status.textContent = `${phase} · ${source} · ${fission.semantic_memory_retrieved ? 'memória ativa' : 'memória não aplicada'}`;
+                    }
+                    break;
+                }
+
+                case 'receiveMessage': {
+                    const row = document.createElement('div');
+                    row.className = 'message-row';
+                    const parsed = parseCognitiveWave(message.text || '');
+                    if (parsed.activeFission) {
+                        updateLatentHologramDeck(parsed.activeFission);
+                    }
+                    row.appendChild(renderAeonResponse(parsed));
+                    chatArea.appendChild(row);
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    break;
+                }
+
+                case 'workspaceFilesList':
+                    if (filesList) {
+                        filesList.innerHTML = '';
+                        if (message.files && message.files.length > 0) {
+                            message.files.slice(0, 15).forEach(filePath => {
+                                const fileDiv = document.createElement('div');
+                                fileDiv.className = 'file-item';
+                                fileDiv.innerHTML = `📄 <span>${filePath}</span>`;
+                                fileDiv.title = "Clique para abrir nativamente no editor";
+                                fileDiv.addEventListener('click', () => {
+                                    vscode.postMessage({
+                                        command: 'openFileInEditor',
+                                        filePath: filePath
+                                    });
+                                });
+                                filesList.appendChild(fileDiv);
+                            });
+                            if (message.files.length > 15) {
+                                const moreDiv = document.createElement('div');
+                                moreDiv.style = "font-size: 0.68rem; color: var(--text-muted); text-align: center; margin-top: 2px;";
+                                moreDiv.textContent = `... e mais ${message.files.length - 15} arquivos sincronizados`;
+                                filesList.appendChild(moreDiv);
+                            }
+                        }
+                    }
+                    break;
+
+                case 'triggerExplain': {
+                    const row = document.createElement('div');
+                    row.className = 'message-row';
+                    const explainMsg = document.createElement('div');
+                    explainMsg.className = 'message user';
+                    explainMsg.innerHTML = `🔍 Explique o seguinte bloco de código:
+                        <div class="code-container">
+                            <pre class="code-block">${escapeHtml(message.code)}</pre>
+                        </div>`;
+                    row.appendChild(explainMsg);
+                    chatArea.appendChild(row);
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    vscode.postMessage({ command: 'sendMessage', text: `Explique esse código:\n${message.code}` });
+                    break;
+                }
+
+                case 'triggerFix': {
+                    const row = document.createElement('div');
+                    row.className = 'message-row';
+                    const fixMsg = document.createElement('div');
+                    fixMsg.className = 'message user';
+                    fixMsg.innerHTML = `🛠️ Corrija ou sugira melhorias para o seguinte código:
+                        <div class="code-container">
+                            <pre class="code-block">${escapeHtml(message.code)}</pre>
+                        </div>`;
+                    row.appendChild(fixMsg);
+                    chatArea.appendChild(row);
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    vscode.postMessage({ command: 'sendMessage', text: `Corrija esse código:\n${message.code}` });
+                    break;
+                }
+
+                case 'triggerAddToContext': {
+                    const row = document.createElement('div');
+                    row.className = 'message-row';
+                    const addMsg = document.createElement('div');
+                    addMsg.className = 'message aeon-container';
+                    addMsg.innerHTML = `
+                        <div class="semantic-content" style="border-color: rgba(16, 185, 129, 0.4);">
+                            ⚡ <b>[CONTEXTO INJETADO]</b> Fragmento do arquivo <code>${escapeHtml(message.fileName)}</code> ancorado no Córtex:
+                            <div class="code-container" style="margin-top:6px;">
+                                <pre class="code-block">${escapeHtml(message.code)}</pre>
+                            </div>
+                        </div>`;
+                    row.appendChild(addMsg);
+                    chatArea.appendChild(row);
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    break;
+                }
+
+                case 'triggerAutonomousScan': {
+                    const row = document.createElement('div');
+                    row.className = 'message-row';
+                    const scanMsg = document.createElement('div');
+                    scanMsg.className = 'message user';
+                    scanMsg.innerHTML = `⚡ <b>${escapeHtml(message.title)}</b><br><span style="font-size:0.75rem; color:#a5b4fc;">Iniciando varredura quântica de topologia, arquitetura e fluxos do projeto ativo...</span>`;
+                    row.appendChild(scanMsg);
+                    chatArea.appendChild(row);
+                    chatArea.scrollTop = chatArea.scrollHeight;
+
+                    let promptText = 'Analise a arquitetura completa e os fluxos estruturais deste projeto em 3 dimensões (Topologia, Dados, Processos).';
+                    if (message.type === 'fix') {
+                        promptText = 'Realize uma auditoria diagnóstica completa no projeto: identifique gargalos, consistência de modelos e melhorias.';
+                    } else if (message.type === 'context') {
+                        promptText = 'Sintetize a topologia essencial e os pontos de entrada deste projeto.';
+                    }
+                    vscode.postMessage({ command: 'sendMessage', text: promptText });
+                    break;
+                }
+            }
+        });
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>

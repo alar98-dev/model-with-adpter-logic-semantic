@@ -16,6 +16,7 @@ class TestSWAConfig:
         assert cfg.gemma_device in ("cpu", "cuda", "xpu")
         assert cfg.hardware_state_size_gb == 24
         assert cfg.rest_port == 20000
+        assert cfg.rest_host == "127.0.0.1"
 
     def test_hardware_fallback_file_auto_path(self) -> None:
         cfg = SWAConfig(hardware_state_fallback="file")

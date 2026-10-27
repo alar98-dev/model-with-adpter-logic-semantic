@@ -13,7 +13,7 @@ class RedisMicListener(threading.Thread):
     """Escuta canais Redis do voice-stream e alimenta o córtex auditivo.
 
     Canais escutados:
-      - swa:mic:speech  → texto transcrito do microfone
+      - swa:mic:speech  → texto ASR com proveniência e incerteza
       - swa:mic:entity  → nova entidade/locutor descoberto
 
     Para cada mensagem de fala, faz mirror para UDP :9200 (córtex auditivo)
@@ -63,10 +63,44 @@ class RedisMicListener(threading.Thread):
                     texto = data.get("texto", "")
                     locutor = data.get("locutor", "Desconhecido")
                     if texto and len(texto) > 2:
+                        # Espelha o payload integral e normaliza o veredito de
+                        # identidade. Descartar campos aqui apagava a janela
+                        # temporal da fala e o instante de cada palavra antes de
+                        # chegarem ao córtex auditivo.
+                        #
+                        # O orquestrador publica o score em `score`; o córtex lia
+                        # `similarity`, então a accuracy chegava 0.00% mesmo com
+                        # o casamento correto. Aceitamos os três nomes para não
+                        # depender do produtor.
+                        score = data.get("score")
+                        if score is None:
+                            score = data.get("similarity")
+                        if score is None:
+                            score = data.get("rag_similarity")
+                        mirror = dict(data)
+                        mirror.pop("channel", None)
                         payload = json.dumps({
+                            **mirror,
                             "text": texto,
-                            "source": "MICROPHONE",
+                            "source": "AUDIO_INPUT",
                             "speaker": locutor,
+                            "is_alifer": bool(data.get("is_alifer", False)),
+                            "similarity": float(score or 0.0),
+                            "confidence": float(
+                                data.get("confidence", score or 0.0) or 0.0
+                            ),
+                            "energy": data.get("energy"),
+                            "timestamp": data.get("timestamp"),
+                            "utter_started_at": data.get("utter_started_at"),
+                            "utter_ended_at": data.get("utter_ended_at"),
+                            "duration_ms": data.get("duration_ms"),
+                            "word_timestamps": data.get("word_timestamps") or [],
+                            "audio_provenance": data.get("proveniencia_audio") or {
+                                "schema_version": 1,
+                                "propagation_path": "unknown",
+                                "source_class": "unknown",
+                                "speaker_attribution": "unverified",
+                            },
                         })
                         udp_sock.sendto(payload.encode(), ("127.0.0.1", self.udp_port))
 
@@ -74,8 +108,10 @@ class RedisMicListener(threading.Thread):
                     locutor = data.get("locutor", "Desconhecido")
                     print(f"\n[RedisMicListener] Nova entidade descoberta: {locutor}")
 
-            except Exception:
-                pass
+            except Exception as e:
+                print(
+                    f"[RedisMicListener] Evento do canal {channel!r} "
+                    f"não foi espelhado: {e}")
 
         udp_sock.close()
         pubsub.close()

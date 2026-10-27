@@ -287,7 +287,7 @@ class ContextBus:
         return self.write_token(
             token,
             role=Role.INJECTED,
-            flag=Flag.INJECTED
+            flags=Flag.INJECTED
         )
     
     def broadcast(self, event_type: str, payload: dict):
@@ -296,7 +296,7 @@ class ContextBus:
         seq = self.write_token(
             data,
             role=Role.SYSTEM,
-            flag=Flag.BROADCAST
+            flags=Flag.BROADCAST
         )
         return seq
     

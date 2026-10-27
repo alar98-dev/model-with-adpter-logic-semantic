@@ -372,6 +372,35 @@ class PostgresBridgeController(BaseSWAController):
                     """
                     )
 
+                    cur.execute(
+                        """
+                        CREATE TABLE IF NOT EXISTS swa_projection_registry (
+                            name VARCHAR(96) PRIMARY KEY,
+                            version INTEGER NOT NULL DEFAULT 1,
+                            source_dim INTEGER NOT NULL,
+                            target_dim INTEGER NOT NULL,
+                            artifact_path TEXT,
+                            metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+                            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                        );
+                        """
+                    )
+                    cur.execute(
+                        """
+                        CREATE TABLE IF NOT EXISTS swa_narrative_events (
+                            id BIGSERIAL PRIMARY KEY,
+                            timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            wave INTEGER NOT NULL DEFAULT 0,
+                            event_type VARCHAR(32) NOT NULL,
+                            summary TEXT NOT NULL,
+                            entities JSONB NOT NULL DEFAULT '[]'::jsonb,
+                            objectives JSONB NOT NULL DEFAULT '[]'::jsonb,
+                            time_context TEXT NOT NULL DEFAULT '',
+                            location TEXT NOT NULL DEFAULT ''
+                        );
+                        """
+                    )
+
                     cur.execute("SELECT COUNT(*) FROM swa_error_reference;")
                     count_row = cur.fetchone()
                     count_val = count_row['count'] if isinstance(count_row, dict) else count_row[0]
@@ -502,9 +531,21 @@ class EpisodicMemoryController(BaseSWAController):
     """Cognitive controller executing semantic episodic search via PGVector or RAM fallback."""
 
     def store_episode(
-        self, content: str, embedding_2560: List[float], concept_group: str, weight: float = 1.0
+        self, content: str = "", embedding_2560: Optional[List[float]] = None,
+        concept_group: str = "GENERAL", weight: float = 1.0,
+        **kwargs,
     ) -> bool:
         """Stores a structured sense episode."""
+        # Also accept the split-controller's positional order and keyword
+        # spelling, preserving existing callers.
+        if isinstance(concept_group, (list, tuple)) and isinstance(embedding_2560, str):
+            content, embedding_2560, concept_group = embedding_2560, concept_group, content
+        if embedding_2560 is None:
+            embedding_2560 = kwargs.pop("embedding", None)
+        if embedding_2560 is None:
+            raise ValueError("embedding is required")
+        from swa.dimensions import to_memory
+        embedding_2560 = to_memory(embedding_2560).tolist()
         payload = {
             "concept_group": concept_group,
             "content": content,
@@ -526,14 +567,18 @@ class EpisodicMemoryController(BaseSWAController):
                         )
                     conn.commit()
                 return True
-            except Exception:
+            except Exception as exc:
+                print(f"[episodic] store failed; RAM fallback: {exc}")
                 pass
 
         self._RAM_DATABASE["swa_episodic_episodes"].append(payload)
         return True
 
-    def query_similar_episodes(self, query_embedding: List[float], limit: int = 5) -> List[Dict[str, Any]]:
+    def query_similar_episodes(self, query_embedding: List[float], limit: int = 5,
+                               categories: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """Executes PGVector Cosine similarity semantic search with NumPy fallback."""
+        from swa.dimensions import to_memory
+        query_embedding = to_memory(query_embedding).tolist()
         if self.is_db_active():
             try:
                 # PGVector distance operator: <=> represents Cosine Distance.
@@ -545,12 +590,16 @@ class EpisodicMemoryController(BaseSWAController):
                             """
                             SELECT concept_group, content, weight, (1 - (embedding_2560 <=> %s::vector)) AS similarity
                             FROM swa_episodic_episodes
+                            WHERE (%s IS NULL OR concept_group = ANY(%s))
                             ORDER BY embedding_2560 <=> %s::vector ASC
                             LIMIT %s;
                         """,
-                            (query_embedding, query_embedding, limit),
+                            (query_embedding, categories, categories, query_embedding, limit),
                         )
-                        return list(cur.fetchall())
+                        rows = list(cur.fetchall())
+                        if categories:
+                            rows = [r for r in rows if r["concept_group"] in set(categories)]
+                        return rows
             except Exception as e:
                 print(f"⚠️ PGVector search failed ({e}). Bypassing to RAM fallback.")
 
@@ -571,7 +620,12 @@ class EpisodicMemoryController(BaseSWAController):
 
         # Sort descending by similarity score
         scored_episodes.sort(key=lambda x: x["similarity"], reverse=True)
+        if categories:
+            allowed = set(categories)
+            scored_episodes = [row for row in scored_episodes if row["concept_group"] in allowed]
         return scored_episodes[:limit]
+
+    search_similar = query_similar_episodes
 
 
 class LatentSignatureController(BaseSWAController):
@@ -1086,6 +1140,3 @@ class AsyncStructuralGeometryLogger:
             self.worker.join(timeout=1.0)
         except Exception:
             pass
-
-
-

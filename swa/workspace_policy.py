@@ -6,7 +6,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-PROJECT_ROOT = Path("/services/model-with-adpter-logic-semantic")
+from swa.paths import PROJECT_ROOT
 
 # Zonas Debian (sem varrer /home inteiro — evita EMFILE no .vscode-server)
 DEBIAN_GLOBAL_ZONES = (

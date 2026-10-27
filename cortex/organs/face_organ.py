@@ -171,7 +171,7 @@ class FaceOrgan:
                 with open(sub_file) as fp:
                     temp_identities[nome][ang + "_sub"] = json.load(fp)
 
-        existing = {i.get("apelido") or i.get("nome"): i for i in self.db.list_identities()}
+        existing = {i.get("nome") or i.get("apelido"): i for i in self.db.list_identities()}
 
         for nome, data in temp_identities.items():
             if nome in existing:
@@ -217,6 +217,8 @@ class FaceOrgan:
         if not HAS_FACE_RECOGNITION:
             return
         frame_id = data.get('frame_id', 0)
+        # Assinatura biométrica diferencial 3D (enviada pelo webcam_sensor no Windows)
+        signature3d = data.get('signature3d') or {}
         img_data = base64.b64decode(data['image'])
         np_arr = np.frombuffer(img_data, np.uint8)
         frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
@@ -240,6 +242,9 @@ class FaceOrgan:
 
             current_subtleties = extract_subtleties(rgb_frame, (top, right, bottom, left), landmarks)
             current_angle = current_subtleties.get('current_angle', 'front')
+            # Integra a assinatura 3D (malha/iris/pose) como métrica biométrica diferencial
+            if signature3d:
+                current_subtleties['signature3d'] = signature3d
 
             result = self.db.find_identity_by_face(
                 face_encoding.tolist(), threshold=self.accept_threshold
@@ -260,20 +265,32 @@ class FaceOrgan:
             matched_id = None
 
             if result:
-                matched_identity = result.get("apelido") or result.get("nome")
+                matched_identity = result.get("nome") or result.get("apelido")
                 matched_id = result.get("identity_id")
                 confidence = result.get("similarity", 0)
                 label = matched_identity
                 self.trackers[matched_identity] = {"center": (cx, cy), "trust": self.MAX_TRUST}
 
                 face_id = result.get("face_id")
-                if face_id and confidence < 0.30:
-                    self.db.update_face_encoding(
-                        face_id=face_id,
-                        new_embedding=face_encoding.tolist(),
-                        subtleties=current_subtleties,
-                        blend_factor=0.05,
-                    )
+                # AUTO-LEARN bidirecional:
+                #  - confiança ALTA (≥0.60): captura de alta qualidade -> refina o
+                #    embedding com ajuste fino (quanto mais te vê, mais aprende o rosto);
+                #  - confiança BAIXA (<0.30): incorpora novo ângulo/variação salva.
+                if face_id:
+                    if confidence >= 0.60:
+                        self.db.update_face_encoding(
+                            face_id=face_id,
+                            new_embedding=face_encoding.tolist(),
+                            subtleties=current_subtleties,
+                            blend_factor=0.03,
+                        )
+                    elif confidence < 0.30:
+                        self.db.update_face_encoding(
+                            face_id=face_id,
+                            new_embedding=face_encoding.tolist(),
+                            subtleties=current_subtleties,
+                            blend_factor=0.05,
+                        )
 
                 self.db.log_recognition(
                     identity_id=matched_id,

@@ -10,6 +10,8 @@ import numpy as np
 
 from swa.ooda.interfaces import AbstractState
 
+from swa.vector_manifold import VBAT_DIMS, VBAT_STORE_FILE
+
 
 class Observer:
     """Captures the current cognitive and physical state for the OODA cycle."""
@@ -29,6 +31,7 @@ class Observer:
         entropy = self._resolve_entropy()
         heat, mass, resonance = self._read_debian_physics(debian_physics_path)
         entropy += (heat / 50.0) + (mass / 100.0) + (resonance / 200.0)
+        entropy += self._resolve_vbat_entropy()
 
         # Temporal inertia / viscosity
         temporal_inertia: Dict[str, float] = getattr(
@@ -61,6 +64,25 @@ class Observer:
         if metrics is not None and isinstance(metrics, dict):
             return metrics.get("entropy", 0.0)
         return 0.0
+
+    def _resolve_vbat_entropy(self) -> float:
+        """Lê a mesma célula física que o fold AEON grava (add-only, juiz físico).
+
+        A célula nebulosa AEON (fold 640D/2560D → STORE add-only) NÃO é um
+        símbolo inventado: é o arquivo físico `VBAT_STORE_FILE[dim]`. O OODA
+        global e o micro-OODA observam o MESMO arquivo — nunca um manifest
+        espelhado (que herdou espelhos órfãos tipo `vbat 2560D frozen`).
+        Célula presente = bloco físico existe; o arquivo é o juiz.
+        """
+        total = 0.0
+        for dim, f in VBAT_STORE_FILE.items():
+            if not f.is_file():
+                continue
+            # cada bloco físico = 4096f (16KB) + I len (4B)
+            n_blocks = f.stat().st_size // (4 * 4096 + 4)
+            if n_blocks > 0:
+                total += 1.0 / (1.0 + abs(dim - 2560) / 2560.0) * min(n_blocks, 8)
+        return total
 
     def _read_debian_physics(
         self, path: str

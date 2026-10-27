@@ -1,0 +1,113 @@
+{
+	"name": "aeon-vscode-extension",
+	"displayName": "SWA Aeon Copilot",
+	"description": "Natively integrate SWA Aeon Agentic Intelligence and Auto-complete from WSL into VSCode",
+	"version": "1.1.0",
+	"publisher": "swa-aeon",
+	"engines": {
+		"vscode": "^1.75.0"
+	},
+	"categories": [
+		"AI",
+		"Programming Languages",
+		"Other"
+	],
+	"activationEvents": [
+		"onStartupFinished",
+		"onView:aeon-chat-view"
+	],
+	"main": "./out/extension.js",
+	"contributes": {
+		"configuration": {
+			"title": "SWA Aeon",
+			"properties": {
+				"aeon.gatewayUrl": {
+					"type": "string",
+					"default": "http://127.0.0.1:8050",
+					"description": "URL do Gateway Rust canônico do AEON."
+				}
+			}
+		},
+		"commands": [
+			{
+				"command": "aeon-copilot.openChat",
+				"title": "SWA Aeon: Abrir Córtex de Conversação"
+			},
+			{
+				"command": "aeon-copilot.explainCode",
+				"title": "SWA Aeon: Explicar Código Selecionado"
+			},
+			{
+				"command": "aeon-copilot.fixCode",
+				"title": "SWA Aeon: Corrigir Código/Erros"
+			},
+			{
+				"command": "aeon-copilot.addToContext",
+				"title": "SWA Aeon: Adicionar ao Contexto Semântico"
+			},
+			{
+				"command": "aeon-copilot.openMatrixView",
+				"title": "SWA Aeon: Open Matrix View"
+			}
+		],
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "aeon-sidebar",
+					"title": "SWA Aeon",
+					"icon": "media/icon.svg"
+				}
+			]
+		},
+		"views": {
+			"aeon-sidebar": [
+				{
+					"type": "webview",
+					"id": "aeon-chat-view",
+					"name": "SWA Aeon Córtex"
+				}
+			]
+		},
+		"menus": {
+			"editor/context": [
+				{
+					"command": "aeon-copilot.explainCode",
+					"group": "aeon-menu@1",
+					"when": "editorHasSelection"
+				},
+				{
+					"command": "aeon-copilot.fixCode",
+					"group": "aeon-menu@2",
+					"when": "editorHasSelection"
+				},
+				{
+					"command": "aeon-copilot.addToContext",
+					"group": "aeon-menu@3",
+					"when": "editorHasSelection"
+				}
+			]
+		},
+		"keybindings": [
+			{
+				"command": "aeon-copilot.openChat",
+				"key": "ctrl+shift+a",
+				"mac": "cmd+shift+a"
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./"
+	},
+	"devDependencies": {
+		"@types/node": "16.x",
+		"@types/vscode": "^1.75.0",
+		"typescript": "^4.9.5"
+	},
+	"__metadata": {
+		"installedTimestamp": 1779992360982,
+		"targetPlatform": "undefined",
+		"size": 116049
+	}
+}

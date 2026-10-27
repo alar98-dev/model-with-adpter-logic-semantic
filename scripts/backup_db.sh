@@ -11,18 +11,26 @@ set -euo pipefail
 # Timer: systemctl list-timers | grep swa-backup
 
 DB="${SWA_BACKUP_DB:-swa_matrix}"
+DB_HOST="${SWA_BACKUP_HOST:-127.0.0.1}"
+DB_PORT="${SWA_BACKUP_PORT:-5432}"
 BACKUP_ROOT="/var/lib/swa/backups/pg"
 KEEP="${SWA_BACKUP_KEEP:-7}"
 STAMP=$(date +%Y%m%d_%H%M%S)
 DUMP="$BACKUP_ROOT/${DB}_${STAMP}.dump"
 ERR_LOG="/tmp/swa_backup_err.log"
+# A tabela física substituída durante a recuperação permanece preservada
+# para auditoria, mas não pertence mais ao read-model ativo e contém páginas
+# irrecuperáveis. O estado ativo é integralmente incluído no dump.
+EXCLUDE_ARCHIVED_CORRUPT_TABLE="public.vector_sanctum_corrupt_20261020"
 
 mkdir -p "$BACKUP_ROOT"
 
 echo "[backup_db] dump de '$DB' -> $DUMP ..."
 
-if pg_dump -Fc -d "$DB" -f "$DUMP" 2>"$ERR_LOG"; then
-    sha256sum "$DUMP" | awk '{print $1}' > "$DUMP.sha256"
+if PGHOST="$DB_HOST" PGPORT="$DB_PORT" pg_dump -Fc \
+    --exclude-table="$EXCLUDE_ARCHIVED_CORRUPT_TABLE" \
+    -d "$DB" -f "$DUMP" 2>"$ERR_LOG"; then
+    sha256sum "$DUMP" > "$DUMP.sha256"
     if pg_restore -l "$DUMP" >/dev/null 2>&1; then
         echo "[backup_db] OK: $DUMP ($(du -h "$DUMP" | cut -f1)) sha256=$(cat "$DUMP.sha256" | head -c 16)..."
     else

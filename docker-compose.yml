@@ -5,9 +5,10 @@ services:
     build: ...
     container_name: swa-rest
     ports:
-      - "20000:20000"
+      - "${SWA_CHAT_BIND_IP:-127.0.0.1}:20000:20000"
     environment:
       - PYTHONUNBUFFERED=1
+      - SWA_REST_HOST=0.0.0.0
     restart: unless-stopped
     cap_add:
       - IPC_LOCK

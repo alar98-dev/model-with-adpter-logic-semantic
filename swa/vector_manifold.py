@@ -9,17 +9,33 @@ Camadas:
 from __future__ import annotations
 
 import hashlib
+import struct
 import json
+import mmap
 import os
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterator
 
+import numpy as np
+
 SHM_MANIFOLD_DIR = Path("/dev/shm/swa_vector_manifold")
 MANIFEST_FILE = SHM_MANIFOLD_DIR / "manifest.json"
 TREE_FILE = SHM_MANIFOLD_DIR / "reality_tree.jsonl"
 ID_INDEX_FILE = SHM_MANIFOLD_DIR / "interdim_index.json"
+
+VBAT_DIMS = (640, 2560)
+# ---- vBAT STORE CANÔNICO (fonte única; ADD-ONLY; NUNCA tocado por rebuild) ----
+VBAT_STORE_DIR = SHM_MANIFOLD_DIR / "vbat_store"
+VBAT_STORE_FILE = {d: VBAT_STORE_DIR / f"vbat_{d}.bin" for d in VBAT_DIMS}
+VBAT_STORE_MANIFEST = VBAT_STORE_DIR / "vbat_manifest.json"
+
+VBAT_FILES = {dim: SHM_MANIFOLD_DIR / f"vectors_{dim}.bin" for dim in VBAT_DIMS}
+VBAT_FLAG_FILES = {dim: SHM_MANIFOLD_DIR / f"flags_{dim}.bin" for dim in VBAT_DIMS}
+VBAT_DRIFTING = 0
+VBAT_FROZEN = 1
+VBAT_DECAY = 2
 
 
 @dataclass
@@ -178,6 +194,11 @@ class VectorManifold:
         by_id = {n.interdim_id: asdict(n) for n in nodes}
         by_path = {n.physical_path: n.interdim_id for n in nodes}
 
+        idx = {"by_id": by_id, "by_path": by_path}
+        vbat_idx = (self._load_id_index().get("vbat") or {}) or {}
+        if vbat_idx:
+            idx["vbat"] = vbat_idx
+
         # Árvore por zona (para navegação tipo tree folder)
         zones: dict[str, list[str]] = {}
         for n in nodes:
@@ -201,6 +222,17 @@ class VectorManifold:
             "tree_file": str(TREE_FILE),
             "id_index_file": str(ID_INDEX_FILE),
         }
+        vbat_man = (self.load_manifest() or {}).get("vbat") or {}
+        if vbat_man:
+            manifest["vbat"] = vbat_man
+
+        # TRAVA CANÔNICA: se vBAT canônico existe, a âncora é REAL por contrato.
+        # Sem isso, um rebuild com embedder ainda-não-carregado marca embedding_source
+        # como "sintético" → no próximo tick o timer dispara rebuild full → wipe vBAT.
+        # Aqui forçamos o canônico: a guarda "embedding_source != real → skip" do
+        # timer passa a NUNCA re-disparar rebuild quando vBAT já está de pé.
+        if vbat_man:
+            manifest["embedding_source"] = "gemma-3-270m_proj2560"
 
         with open(MANIFEST_FILE, "w", encoding="utf-8") as f:
             json.dump(manifest, f, ensure_ascii=False, indent=2)
@@ -210,9 +242,194 @@ class VectorManifold:
                 f.write(json.dumps(asdict(node), ensure_ascii=False) + "\n")
 
         with open(ID_INDEX_FILE, "w", encoding="utf-8") as f:
-            json.dump({"by_id": by_id, "by_path": by_path}, f, ensure_ascii=False)
+            json.dump(idx, f, ensure_ascii=False)
 
         return manifest
+
+    def _dump_manifest(self, manifest: dict) -> None:
+        SHM_MANIFOLD_DIR.mkdir(parents=True, exist_ok=True)
+        with open(MANIFEST_FILE, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, ensure_ascii=False, indent=2)
+
+    # ---- helpers vBAT STORE canônico (add-only, idempotentes) ----
+    def _vbat_store_entry_count(self, dim: int) -> int:
+        p = VBAT_STORE_FILE[dim]
+        return 0 if not p.is_file() else p.stat().st_size // (4 * 4096 + 4)
+
+    def _vbat_has_interdim(self, dim: int, interdim_id: str) -> bool:
+        """Idempotência ANTIGA-vs-NOVA: a verdade é o ARQUIVO FÍSICO add-only.
+
+        O interdim_id recebido é o que o write canônico computou a partir da
+        topologia. "Presente" = o STORE add-only físico tem um bloco cujo
+        sha256-topology bate — o arquivo físico é o juiz, nunca o manifest
+        (que herdou espelhos órfãos tipo \`vbat 2560D frozen\` sem .bin).
+        """
+        f = VBAT_STORE_FILE[dim]
+        if not f.is_file():
+            return False
+        blk = 4 * 4096 + 4
+        with open(f, "rb") as fh:
+            chunk = fh.read()
+        off = 0
+        while off + blk <= len(chunk):
+            topo_blk = list(struct.unpack("!4096f", chunk[off:off + 4 * 4096]))
+            cand = "vbat:" + hashlib.sha256(bytes(repr(topo_blk[:64]), "utf-8")).hexdigest()[:24]
+            if cand == interdim_id:
+                return True
+            off += blk
+        return False
+
+    def write_vbat_store_block(self, dim: int, topology: list, payload: bytes) -> dict:
+        """Grava 1 bloco no STORE dedicado — add-only, idempotente por interdim_id.
+
+        Este é o ÚNICO write do vBAT: nunca existe wipe aqui (append de 1 frame
+        canônico), e nenhum rebuild/rebase reescreve o arquivo.
+        """
+        VBAT_STORE_DIR.mkdir(parents=True, exist_ok=True)
+        interdim_id = "vbat:" + hashlib.sha256(repr(topology[:64]).encode()).hexdigest()[:24]
+        if self._vbat_has_interdim(dim, interdim_id):
+            return {"status": "already_present", "id": interdim_id, "dim": dim,
+                    "blocks": self._vbat_store_entry_count(dim)}
+        with open(VBAT_STORE_FILE[dim], "ab") as f:
+            f.write(struct.pack("!4096f I", *topology, len(payload)))
+            f.write(payload)
+        mans = []
+        if VBAT_STORE_MANIFEST.is_file():
+            try:
+                mans = json.loads(VBAT_STORE_MANIFEST.read_text(encoding="utf-8"))
+            except Exception:
+                mans = []
+        mans.append({"interdim_id": interdim_id, "dim": dim, "blocks": len(mans) + 1,
+                     "sha256": hashlib.sha256(bytes(repr(topology[:64]), "utf-8")).hexdigest()[:16],
+                     "at": time.time()})
+        VBAT_STORE_MANIFEST.write_text(json.dumps(mans, indent=2), encoding="utf-8")
+        return {"status": "stored", "id": interdim_id, "dim": dim,
+                "blocks": self._vbat_store_entry_count(dim)}
+
+    def _load_id_index(self) -> dict:
+        if not ID_INDEX_FILE.is_file():
+            return {}
+        with open(ID_INDEX_FILE, encoding="utf-8") as f:
+            return json.load(f)
+
+    def _dump_id_index(self, index: dict) -> None:
+        SHM_MANIFOLD_DIR.mkdir(parents=True, exist_ok=True)
+        with open(ID_INDEX_FILE, "w", encoding="utf-8") as f:
+            json.dump(index, f, ensure_ascii=False)
+
+    def write_vbat(
+        self,
+        dim: int,
+        vectors,
+        ids: list[str],
+        source: str | list[str],
+        labels: list[str] | None = None,
+    ) -> dict:
+        """Persiste matriz contígua float32 em /dev/shm (mmap) e indexa slots por id."""
+        if dim not in VBAT_DIMS:
+            raise ValueError(f"dim {dim} não suportada ({VBAT_DIMS})")
+        arr = np.ascontiguousarray(np.asarray(vectors, dtype=np.float32))
+        if arr.ndim != 2 or arr.shape[1] != dim or arr.shape[0] != len(ids):
+            raise ValueError("matriz/ids incoerentes")
+
+        path = VBAT_FILES[dim]
+        flag_path = VBAT_FLAG_FILES[dim]
+        SHM_MANIFOLD_DIR.mkdir(parents=True, exist_ok=True)
+
+        n = int(arr.shape[0])
+        byte_size = int(arr.nbytes)
+        with open(path, "wb") as f:
+            f.truncate(byte_size)
+        with open(path, "r+b") as f:
+            buf = mmap.mmap(f.fileno(), byte_size, access=mmap.ACCESS_WRITE)
+            buf.write(arr.tobytes(order="C"))
+            buf.flush()
+            buf.close()
+
+        normas = np.linalg.norm(arr, axis=1)
+        flags = np.where(
+            normas >= 0.9995,
+            VBAT_FROZEN,
+            np.where(normas <= 0.90, VBAT_DECAY, VBAT_DRIFTING),
+        ).astype(np.uint8)
+        with open(flag_path, "wb") as f:
+            f.write(flags.tobytes())
+
+        index = self._load_id_index()
+        blocos = index.setdefault("vbat", {}).setdefault(str(dim), {})
+        for slot, vid in enumerate(ids):
+            entry = {"slot": int(slot), "source": source, "state": int(flags[slot])}
+            if labels:
+                entry["label"] = labels[slot]
+            blocos[vid] = entry
+
+        manifest = self.load_manifest() or {"version": 2}
+        manifest["vbat"] = manifest.get("vbat", {}) or {}
+        manifest["vbat"][str(dim)] = {
+            "file": path.name,
+            "flag_file": flag_path.name,
+            "dim": int(dim),
+            "blocks": n,
+            "stride_bytes": int(dim * 4),
+            "total_bytes": byte_size,
+            "source": source,
+            "blob_sha256": hashlib.sha256(arr.tobytes(order="C")).hexdigest(),
+            "built_at_iso": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "state_dist": {
+                str(VBAT_FROZEN): int((flags == VBAT_FROZEN).sum()),
+                str(VBAT_DRIFTING): int((flags == VBAT_DRIFTING).sum()),
+                str(VBAT_DECAY): int((flags == VBAT_DECAY).sum()),
+            },
+        }
+        self._dump_manifest(manifest)
+        self._dump_id_index(index)
+        return manifest["vbat"][str(dim)]
+
+    def open_vbat(self, dim: int):
+        """View zero-copy (np.frombuffer sobre mmap) de vectors_{dim}.bin."""
+        path = VBAT_FILES.get(dim)
+        if path is None or not path.is_file():
+            return None
+        size = path.stat().st_size
+        if size == 0:
+            return np.zeros((0, dim), dtype=np.float32)
+        raw = open(path, "rb")
+        buf = mmap.mmap(raw.fileno(), size, access=mmap.ACCESS_READ)
+        self._vbat_holders = getattr(self, "_vbat_holders", {})
+        self._vbat_holders[dim] = (raw, buf)
+        return np.frombuffer(buf, dtype=np.float32).reshape(-1, dim)
+
+    def vbat_flags(self, dim: int) -> np.ndarray | None:
+        path = VBAT_FLAG_FILES.get(dim)
+        if path is None or not path.is_file():
+            return None
+        return np.frombuffer(path.read_bytes(), dtype=np.uint8)
+
+    def vbat_vector(self, vid: str, dim: int) -> np.ndarray | None:
+        """Resolve id → slot → vetor, sem tocar no pgvector (sem TOAST)."""
+        entry = (self._load_id_index().get("vbat", {}).get(str(dim)) or {}).get(vid)
+        if entry is None:
+            return None
+        store = self.open_vbat(dim)
+        if store is None or entry["slot"] >= store.shape[0]:
+            return None
+        return store[entry["slot"]]
+
+    def vbat_status(self) -> dict:
+        manifest = self.load_manifest() or {}
+        out = dict(manifest.get("vbat", {}) or {})
+        for dim in VBAT_DIMS:
+            entry = out.get(str(dim))
+            if not entry:
+                continue
+            flags = self.vbat_flags(dim)
+            if flags is not None:
+                entry["flags"] = {
+                    str(VBAT_FROZEN): int((flags == VBAT_FROZEN).sum()),
+                    str(VBAT_DRIFTING): int((flags == VBAT_DRIFTING).sum()),
+                    str(VBAT_DECAY): int((flags == VBAT_DECAY).sum()),
+                }
+        return out
 
     def rebuild_reality(self, roots: list[str] | None = None) -> dict:
         from swa.workspace_policy import get_watch_roots

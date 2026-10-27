@@ -1,78 +1,38 @@
-# Documentação de API — SWA Aeon
+# API vigente do AEON
 
-A API de desenvolvimento do SWA Aeon expõe endpoints OpenAI-compatíveis para o núcleo central e rotas de monitoramento/diagnóstico.
+Base: `http://127.0.0.1:8050`
 
-## Endpoints do Núcleo (Porta 20000)
+## Chat e integração OpenCode
 
-Exposto pelo serviço `swa-aeonc.service` (`aeonc.py`), executando o Gemma-3-1B-it.
+- `GET /v1/models`
+- `POST /v1/chat/completions`
+- `POST /api/v1/integrations/opencode/context`
 
-### 1. `/v1/chat/completions` (POST)
-Geração de chat compatível com o formato OpenAI. Suporta streaming via Server-Sent Events (SSE).
+O primeiro grupo é OpenAI-compatible e serve ao OpenCode. O segundo registra
+contexto de sessão com BLAKE3 no ledger do AEON. Nenhum desses contratos
+permite acesso direto a Redis, PostgreSQL, SHM ou execução arbitrária.
 
-**Payload de entrada (JSON):**
-```json
-{
-  "model": "gemma-3-1b-it",
-  "messages": [
-    {"role": "user", "content": "Olá Aeon, como vai?"}
-  ],
-  "profile": "equilibrado",
-  "stream": true
-}
-```
+## Operação e auditoria
 
-*Nota:* O campo `profile` é uma extensão do SWA e aceita: `preciso`, `equilibrado`, `explorativo`, ou `duo` (detalhes em `PERFIS_GERACAO.md`).
+- `GET /health`
+- `GET /api/v1/chat/state`
+- `GET /api/v1/chat/events/:turn_id`
+- `GET /api/v1/chat/training/:turn_id`
+- `GET /api/v1/chat/archive/:turn_id/:wave_index`
+- `POST /api/v1/chat/archive/replay/:turn_id`
+- `POST /api/v1/chat/cancel`
 
-**Exemplo de requisição (cURL):**
-```bash
-curl -X POST http://localhost:20000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model": "gemma-3-1b-it", "messages": [{"role": "user", "content": "Explique causalidade."}], "stream": true}'
-```
+O stream detalhado do ciclo OODA é `POST /api/v1/chat/stream`. O endpoint
+OpenAI-compatible com `stream=true` é uma ponte de compatibilidade e devolve
+um delta final único; ele não substitui a telemetria SSE nativa.
 
-### 2. `/health` (GET)
-Retorna o estado de integridade do modelo, métricas de hardware e informações sobre a sincronização com o organismo SWA.
+## Modelos locais
 
-**Exemplo de resposta (JSON):**
-```json
-{
-  "status": "healthy",
-  "model": "gemma-3-1b-it",
-  "device": "cpu",
-  "dtype": "torch.bfloat16",
-  "compile": false,
-  "metrics": {
-    "tokens_generated": 1024,
-    "last_tps": 4.5
-  },
-  "organismo": {
-    "heartbeat_ok": true,
-    "last_heartbeat_seconds_ago": 12,
-    "thoughts_count": 340
-  }
-}
-```
+| Papel | Endereço | Modelo |
+| --- | --- | --- |
+| Gateway | `:8050` | AEON OODA |
+| Córtex | `:20003` | Gemma 3 1B |
+| Subcórtex | `:20002` | Gemma 3 270M / embeddings 640D |
 
-### 3. `/v1/models` (GET)
-Lista o modelo ativo carregado no núcleo.
-```bash
-curl http://localhost:20000/v1/models
-```
-
----
-
-## Endpoints do Orquestrador OODA (Porta 20001)
-
-Exposto pelo serviço `swa-auto.service` (`cortex/run.py`). Contém as rotas clássicas do orquestrador e receptor de ações de controle.
-
-### 1. `/api/v1/chat` (POST)
-Processamento cognitivo fechado unificado (OODA Loop).
-**Payload de entrada (JSON):**
-```json
-{
-  "prompt": "Explique causalidade em IA."
-}
-```
-
----
-*Atualizado para SWA-Aeon v2.0 (2026).*
+Os documentos que mencionam `:20000` pertencem ao runtime histórico e estão
+classificados em `DOCUMENTATION_STATUS.md`.

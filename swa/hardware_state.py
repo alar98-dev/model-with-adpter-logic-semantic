@@ -59,6 +59,8 @@ class HardwareStateManager:
         self.total_size = total_size_gb * 1024**3  # 24GB
         self.fd = None
         self.mem_map = None
+        self._ram_states: Dict[str, torch.Tensor] = {}
+        self._writable = False
         self.state_metadata: Dict[str, StateMetadata] = {}
 
         self._initialize_hardware_bus()
@@ -70,7 +72,7 @@ class HardwareStateManager:
         self.signal_gain = 2.0
         try:
             # Simplest compatible open for WSL2 (O_RDONLY only)
-            self.fd = os.open(self.device_path, os.O_RDONLY)
+            self.fd = os.open(self.device_path, os.O_RDWR)
             # WSL2-friendly: advise sequential massive reads for kernel prefetch
             os.posix_fadvise(self.fd, 0, 0, os.POSIX_FADV_SEQUENTIAL)
 
@@ -82,7 +84,8 @@ class HardwareStateManager:
             if size <= 0:
                 size = os.lseek(self.fd, 0, os.SEEK_END)
                 os.lseek(self.fd, 0, os.SEEK_SET)
-            self.mem_map = mmap.mmap(self.fd, size, flags=mmap.MAP_SHARED, access=mmap.ACCESS_READ)
+            self.mem_map = mmap.mmap(self.fd, size, flags=mmap.MAP_SHARED, access=mmap.ACCESS_WRITE)
+            self._writable = True
 
             print(f"🚀 SWA Organic Hardware Bus initialized: {self.total_size // (1024**3)}GB mapped to {self.device_path}")
             print("🎯 Organic entropy, inertia, and circular buffer active. Gemma 3 now has physical mass.")
@@ -95,6 +98,7 @@ class HardwareStateManager:
             # Allocate 256MB of anonymous RAM memory (more than enough for SWA vectors and 60MB circular buffer)
             ram_size = 256 * 1024 * 1024
             self.mem_map = mmap.mmap(-1, ram_size)
+            self._writable = True
             self.is_ram_fallback = True
             print("✅ [HAL] SWA operando em RAM-mode Genuíno. As mecânicas de entropia e inércia ESTÃO ATIVAS!")
 
@@ -117,6 +121,18 @@ class HardwareStateManager:
 
         if data.shape != expected_shape:
             raise ValueError(f"Shape mismatch for {state_name}: expected {expected_shape}, got {data.shape}")
+
+        # A block device can be readable but not writable in existing
+        # installations. Keep the state coherent in RAM instead of raising a
+        # low-level mmap TypeError from the hot path.
+        if not self._writable:
+            self._ram_states[state_name] = data.detach().cpu().float().clone()
+            if validate:
+                raw = self._ram_states[state_name].numpy().tobytes()
+                self.state_metadata[state_name] = StateMetadata(
+                    offset=offset, size=len(raw), hash=blake3.blake3(raw).hexdigest(), timestamp=time.time()
+                )
+            return True
 
         # Flatten to bytes
         data_bytes = data.detach().cpu().numpy().tobytes()
@@ -153,6 +169,9 @@ class HardwareStateManager:
         if self.mem_map is None:
             # RAM-only mode: return None (no persistent state)
             return None
+
+        if not self._writable and state_name in self._ram_states:
+            return self._ram_states[state_name].clone()
 
         if state_name not in self._get_offset_map():
             raise ValueError(f"Unknown state: {state_name}")

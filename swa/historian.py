@@ -1,7 +1,10 @@
+import math
 import threading
 import time
 import torch
 import random
+import os
+import logging
 from typing import Dict, Any
 from swa.aeon_logger import append_aeon_batch, log_infra
 
@@ -11,17 +14,30 @@ class AsynchronousHistorian:
     para narrativas poéticas/humanizadas sobre o 'estado mental' da rede neural.
     Interage diretamente com a entropia e normas de tensores para descrever sentimentos algorítmicos.
     """
-    def __init__(self, eventual_state, sleep_interval=10.0):
+    def __init__(self, eventual_state, sleep_interval=10.0, narrative_state=None):
         self.state = eventual_state
         self._sleep_interval = sleep_interval
         self._active = False
         self._thread = None
         self._file_lock = threading.Lock()
         self._stream_lock = threading.Lock()
+        self._logger = logging.getLogger("swa.historian")
+        try:
+            from swa.narrative_state import NarrativeState
+            self.narrative_state = narrative_state or NarrativeState()
+        except Exception as exc:
+            self.narrative_state = None
+            print(f"[HISTORIADOR] estado narrativo indisponível: {exc}")
         
         # --- BASE-60 SEXAGESIMAL COGNITIVE BREATHING CYCLE ---
         self.ooda_loop_count = 0
-        print("💡 [SEXAGESIMAL HEARTBEAT] Engrenagens de contagem Base-60 sumérias sincronizadas.")
+        try:
+            from swa.sexagesimal_historian_bridge import SexagesimalHistorianBridge
+            self.sexagesimal_bridge = SexagesimalHistorianBridge()
+            print("💡 [SEXAGESIMAL HEARTBEAT] 6 Reinos e 60 Casas acoplados ao Historiador.")
+        except Exception as exc:
+            self.sexagesimal_bridge = None
+            print(f"[HISTORIADOR] Ponte sexagesimal indisponível: {exc}")
 
     @property
     def sleep_interval(self) -> float:
@@ -50,7 +66,6 @@ class AsynchronousHistorian:
         self._active = False
 
     def _narrative_loop(self):
-        log_file_path = "/services/model-with-adpter-logic-semantic/swa_Aeon.log"
         # Inicializa o Episodic Memory Controller para indução espacial
         episodic_controller = None
         epigenetic_writer = None
@@ -75,9 +90,21 @@ class AsynchronousHistorian:
                     narrative = f"\n📖 [HISTORIADOR ASSÍNCRONO]\n{story}\n"
                     try:
                         log_infra(narrative)
-                    except Exception:
+                    except Exception as exc:
                         # Fallback to printing
+                        print(f"[HISTORIADOR] log_infra falhou: {exc}")
                         print(narrative)
+
+                    if self.narrative_state is not None:
+                        try:
+                            self.narrative_state.record_turn(
+                                user="eventual-state",
+                                reply=story,
+                                summary=story[-600:],
+                                wave=self.ooda_loop_count,
+                            )
+                        except Exception as exc:
+                            print(f"[HISTORIADOR] persistência narrativa falhou: {exc}")
                     
                     # Salva no PGVector para Orientação Espacial Contínua e Escrita Epigenética
                     if self.state.cached_bias is not None:
@@ -104,8 +131,8 @@ class AsynchronousHistorian:
                                 if _evec is not None and len(_evec) >= 2:
                                     # Slot 0=temp, Slot 1=CPU -> micro-drift organico
                                     drift += abs(float(_evec[0]) - 0.5) * 0.05 + float(_evec[1]) * 0.03
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            self._logger.warning("entropy drift enrichment failed: %s", exc)
                         
                         if epigenetic_writer is not None and drift < 0.5:
                             # Consolida fisicamente no /dev/sde
@@ -119,7 +146,7 @@ class AsynchronousHistorian:
                                 content=story,
                                 embedding_2560=tensor.tolist(),
                                 concept_group="SPATIAL_ANOMALY",
-                                weight=1.0 + float(drift)
+                                weight=1.0 + float(drift),
                             )
             except Exception as e:
                 print(f"⚠️ [HISTORIADOR] Falha na transcrição/indução espacial: {e}")
@@ -150,13 +177,14 @@ class AsynchronousHistorian:
                 # 1 write por pensamento completo (não por token)
                 append_aeon_batch("".join(_buf))
                 self._token_buffer = []
-        except Exception:
-            pass
+        except Exception as exc:
+            self._logger.warning("thought journal write failed: %s", exc)
         finally:
-            self._stream_lock.release()
+            if self._stream_lock.locked():
+                self._stream_lock.release()
 
     def _compose_story(self) -> str:
-        telemetry = self.state.get_telemetry()
+        telemetry = self.state.get_telemetry() if self.state is not None else {}
         drift = telemetry.get("latent_drift", 0.0)
         # Micro-drift organico da entropy thread
         try:
@@ -171,7 +199,7 @@ class AsynchronousHistorian:
         obstacles = telemetry.get("obstacles", [])
         
         # Leitura bruta dos pesos
-        bias_tensor = self.state.cached_bias
+        bias_tensor = self.state.cached_bias if self.state is not None else None
         bias_norm = 0.0
         if bias_tensor is not None:
             # A "energia emocional" é o valor L2-Norm dos tensores de bias atuais
@@ -182,6 +210,28 @@ class AsynchronousHistorian:
         c_0 = self.ooda_loop_count % 60
         c_1 = (self.ooda_loop_count // 60) % 60
         c_2 = (self.ooda_loop_count // 3600) % 60
+
+        if getattr(self, "sexagesimal_bridge", None) is not None:
+            narrative, realm_id, house_id, rel_id = self.sexagesimal_bridge.narrate_state(
+                loop_count=self.ooda_loop_count,
+                drift=drift,
+                bias_norm=bias_norm,
+            )
+            try:
+                theta = (c_0 * 6.0 * math.pi) / 180.0
+                self.sexagesimal_bridge.record_chronicle(
+                    loop_count=self.ooda_loop_count,
+                    realm_id=realm_id,
+                    house_id=house_id,
+                    phase_theta=theta,
+                    narrative=narrative,
+                    drift=drift,
+                    bias_norm=bias_norm,
+                    relation_id=rel_id,
+                )
+            except Exception:
+                pass
+            return narrative
         
         story_lines = [f"[RITMO SUMÉRIO] Ciclo Maior: {c_2}, Ciclo Menor: {c_1}, Fase: {c_0}/60."]
         

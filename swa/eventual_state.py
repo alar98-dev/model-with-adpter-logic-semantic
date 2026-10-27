@@ -72,6 +72,20 @@ class EventualState:
                 }
             ))
 
+    def update_vectors(self, values: Dict[str, float]) -> None:
+        """Atomically update navigation vectors (the getter is intentionally a copy)."""
+        self.vectors = values
+
+    def set_coordinate_vector(self, vector: Optional[torch.Tensor]) -> None:
+        """Shared coordinate contract for steering implementations."""
+        with self._state_lock:
+            self._coordinate_vector = None if vector is None else vector.detach().clone()
+
+    def get_coordinate_vector(self) -> Optional[torch.Tensor]:
+        with self._state_lock:
+            value = getattr(self, "_coordinate_vector", None)
+            return None if value is None else value.clone()
+
     @property
     def obstacles(self) -> List[Dict[str, Any]]:
         """Get current obstacle list."""

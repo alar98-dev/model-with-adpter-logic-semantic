@@ -753,18 +753,7 @@ class SWACLI:
         vector_name, strength = dominant_vector
 
         # Create dynamic prompt based on state
-        if strength < 0.2:
-            prompt = "O espaço digital está ocioso. Buscando por novos arquivos no sistema..."
-        elif vector_name == 'forward' and 'front' in state.obstacles:
-            prompt = "O acesso a essa pasta foi bloqueado. Precisarei inspecionar as permissões ou ler outro arquivo."
-        elif vector_name == 'forward':
-            prompt = f"Entrando no diretório para listar e explorar os nós estruturais de dados."
-        elif vector_name in ['left', 'right']:
-            prompt = f"Buscando ramificações de arquivos na dimensão {vector_name} da árvore binária."
-        elif vector_name == 'stop':
-            prompt = "Pausando a execução. Analisando as extensões dos arquivos no nó atual."
-        else:
-            prompt = f"Lendo e extraindo código na direção física {vector_name} do disco rígido."
+        prompt = " "  # Microgravidade: vacuo sintatico
 
         # Use streaming generation with real-time steering callback
         def steering_callback():
@@ -964,7 +953,7 @@ class SWACLI:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
-                sock.bind(("0.0.0.0", 20005))
+                sock.bind(("127.0.0.1", 20005))
             except Exception as e:
                 print(f"⚠️ Não foi possível plugar no Nervo Auditivo UDP 20005: {e}")
                 return

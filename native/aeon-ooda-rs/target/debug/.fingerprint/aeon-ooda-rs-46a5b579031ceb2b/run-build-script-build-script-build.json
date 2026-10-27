@@ -1,0 +1,1 @@
+{"rustc":5244445300240561903,"features":"","declared_features":"","target":0,"profile":0,"path":0,"deps":[[8427666869204227821,"build_script_build",false,6247879675649983229]],"local":[{"RerunIfChanged":{"output":"debug/build/aeon-ooda-rs-46a5b579031ceb2b/output","paths":["c_src/sumerian_tensor.c","c_src/sumerian_tensor.h"]}}],"rustflags":[],"config":0,"compile_kind":0}

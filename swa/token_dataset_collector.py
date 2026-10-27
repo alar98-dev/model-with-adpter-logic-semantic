@@ -11,6 +11,7 @@ import re
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Literal
+from swa.paths import project_path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -22,10 +23,11 @@ except ImportError:
 
 DATASET_DIR = os.environ.get(
     "TOKEN_DATASET_DIR",
-    "/services/model-with-adpter-logic-semantic/models/token_dataset"
+    str(project_path("models", "token_dataset"))
 )
 OPENCODE_DB = os.path.expanduser("~/.local/share/opencode/opencode.db")
 UDP_PORT = int(os.environ.get("TOKEN_COLLECTOR_UDP_PORT", "9098"))
+UDP_HOST = os.environ.get("TOKEN_COLLECTOR_HOST", "127.0.0.1")
 BLAKE_SALT = hashlib.sha256(
     os.environ.get("BLAKE_SALT", "aeon-decision-trace-v1").encode()
 ).digest()
@@ -366,7 +368,7 @@ class TokenDatasetCollector:
     def start_udp_server(self, port: int = UDP_PORT):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind(("0.0.0.0", port))
+        sock.bind((UDP_HOST, port))
         print(f"[TOKEN COLLECTOR] UDP server listening :{port}")
         while self._running:
             try:

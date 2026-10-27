@@ -1,0 +1,39 @@
+{
+  "nameShort": "Aeon Studio",
+  "nameLong": "SWA Aeon Studio Neural IDE",
+  "applicationName": "aeon-studio",
+  "dataFolderName": ".aeon-studio",
+  "win32MutexName": "aeonstudio",
+  "licenseName": "Proprietary / SWA Sovereign",
+  "licenseUrl": "https://swa-aeon.local/license",
+  "serverGreeting": [
+    "⚡ Bem-vindo ao SWA Aeon Studio — Ambiente de Desenvolvimento Neural",
+    "Conectado ao Córtex Gemma com Vácuo Sintático e Semantic Warp Nativo."
+  ],
+  "serverLicense": [
+    "SWA Aeon Studio é desenvolvido sob a arquitetura tensorial soberana SWA."
+  ],
+  "serverLicensePrompt": "Licença SWA Aeon",
+  "urlProtocol": "aeon-studio",
+  "quality": "stable",
+  "commit": "swa-aeon-quantum-cortex-2026",
+  "date": "2026-08-16T19:50:00.000Z",
+  "extensionsGallery": {
+    "serviceUrl": "https://open-vsx.org/vscode/gallery",
+    "itemUrl": "https://open-vsx.org/vscode/item"
+  },
+  "extensionRecommendations": [
+    "swa-aeon.aeon-vscode-extension"
+  ],
+  "configurationDefaults": {
+    "workbench.colorTheme": "SWA Deep Void",
+    "telemetry.telemetryLevel": "off",
+    "update.mode": "none",
+    "workbench.startupEditor": "none",
+    "editor.fontFamily": "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+    "editor.fontLigatures": true,
+    "editor.fontSize": 13,
+    "editor.lineHeight": 20,
+    "editor.inlineSuggest.enabled": true
+  }
+}

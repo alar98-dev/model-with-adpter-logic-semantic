@@ -13,6 +13,7 @@ import numpy as np
 
 from swa.ooda.decision_parser import AgentDecision
 from swa.ooda.interfaces import AbstractState
+from swa.paths import project_path
 
 
 class Actor:
@@ -172,7 +173,7 @@ class Actor:
         }
         try:
             with open(
-                "/services/model-with-adpter-logic-semantic/mapa_vetorial_interno.json",
+                str(project_path("mapa_vetorial_interno.json")),
                 "w",
                 encoding="utf-8",
             ) as f:

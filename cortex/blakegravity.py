@@ -253,7 +253,7 @@ class BlakeGravityServer(BaseHTTPRequestHandler):
 
 def run_server():
     port = 20009
-    server = HTTPServer(('0.0.0.0', port), BlakeGravityServer)
+    server = HTTPServer(('127.0.0.1', port), BlakeGravityServer)
     print(f"[BLAKEGRAVITY ASTRO] Servidor Quântico rodando na porta {port}...")
     server.serve_forever()
 
